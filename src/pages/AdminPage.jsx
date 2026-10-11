@@ -9,9 +9,6 @@ import {
   RotateCcw,
   ArrowLeft,
   CheckCircle,
-  Eye,
-  EyeOff,
-  ShoppingBag,
   Plus,
   Trash2,
   X,
@@ -31,6 +28,9 @@ import {
   Search,
   LogOut,
   ShieldCheck,
+  Check,
+  ChevronRight,
+  TrendingUp,
 } from 'lucide-react';
 import {
   formatCurrency,
@@ -40,6 +40,10 @@ import {
 } from '../utils/formatters';
 import { generateCompletedOrdersPdf } from '../utils/pdfReport';
 import { formatCNPJ } from '../components/AdminAuthView';
+import {
+  CATEGORIES as DEFAULT_CATEGORIES,
+  PRODUCTS as OFFICIAL_PRODUCTS,
+} from '../data/storeData';
 
 const getLocalDateString = (d = new Date()) => {
   const year = d.getFullYear();
@@ -120,11 +124,6 @@ function getPdfDateFilterResult(orders, preset, customStart, customEnd) {
 
   return { filteredOrders, label };
 }
-
-import {
-  CATEGORIES as DEFAULT_CATEGORIES,
-  PRODUCTS as OFFICIAL_PRODUCTS,
-} from '../data/storeData';
 
 export function AdminPage({
   storeInfo,
@@ -228,20 +227,13 @@ export function AdminPage({
     onUpdateOrders(updated);
   };
 
-  // Pedidos: Excluir Pedido
-  const handleDeleteOrder = (orderId) => {
-    if (window.confirm('Deseja excluir este pedido do histórico?')) {
-      if (!onUpdateOrders) return;
-      const updated = orders.filter((o) => o.id !== orderId);
-      onUpdateOrders(updated);
-    }
-  };
-
-  // Alternar disponibilidade de produto
+  // Alternar Disponibilidade de Produto
   const toggleProductAvailability = (productId) => {
     const updated = products.map((p) => {
       if (p.id === productId) {
-        return { ...p, isAvailable: !p.isAvailable };
+        const nextState = p.isAvailable === false ? true : false;
+        showProductFeedback(`"${p.name}" foi ${nextState ? 'ativado' : 'pausado'} no cardápio.`);
+        return { ...p, isAvailable: nextState };
       }
       return p;
     });
@@ -250,14 +242,14 @@ export function AdminPage({
 
   // Excluir Produto
   const handleDeleteProduct = (productId, productName) => {
-    if (window.confirm(`Tem certeza que deseja excluir o produto "${productName}"?`)) {
+    if (window.confirm(`Deseja realmente remover "${productName}" do cardápio?`)) {
       const updated = products.filter((p) => p.id !== productId);
       onUpdateProducts(updated);
       showProductFeedback(`Produto "${productName}" removido com sucesso.`);
     }
   };
 
-  // Abrir modal de edição para um produto
+  // Abrir Modal de Edição
   const handleOpenEditModal = (product) => {
     const isCustomCat = !DEFAULT_CATEGORIES.some((c) => c.id === product.categoryId);
     setEditingProduct({
@@ -421,724 +413,869 @@ export function AdminPage({
     });
   }, [orders, orderFilter]);
 
-  return (
-    <div className="min-h-screen flex flex-col font-sans select-none antialiased bg-[#FAF8F3] text-[#1E2B20]">
-      
-      {/* TopBar Navegação Mobile e Desktop */}
-      <header className="sticky top-0 z-40 bg-[#FAF8F3]/95 backdrop-blur-md border-b border-[#EBE7DF]">
-        {/* Linha Superior: Voltar, Loja e Status */}
-        <div className="px-4 py-3 flex items-center justify-between max-w-5xl mx-auto w-full">
-          {/* Voltar ao Cardápio */}
-          <button
-            type="button"
-            onClick={onBackToMenu}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#315433] hover:text-[#233F25] py-1.5 px-2.5 rounded-full bg-[#EBF2EA] transition-colors cursor-pointer"
-            title="Ver Cardápio do Cliente"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Ver Cardápio</span>
-          </button>
+  // Estatísticas dos pedidos
+  const completedOrdersList = useMemo(() => orders.filter((o) => o.status === 'entregue'), [orders]);
+  const totalRevenueAllTime = useMemo(
+    () => completedOrdersList.reduce((acc, o) => acc + (o.total || 0), 0),
+    [completedOrdersList]
+  );
 
-          {/* Nome da Loja com Ícone (sem a escrita 'Painel da Loja') */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Store className="w-4 h-4 text-[#315433] shrink-0" />
-            <span className="text-sm sm:text-base font-bold tracking-tight text-[#1E2B20] truncate">
-              {adminSession.arena?.nome || storeInfo.name}
-            </span>
+  return (
+    <div className="min-h-screen bg-[#fbf9f5] font-manrope text-[#1b1c1a] antialiased selection:bg-[#daeaaa] selection:text-[#161f00]">
+      {/* ── BEGIN: TopBar Navigation (Header Fixo Editorial) ── */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#fbf9f5]/90 backdrop-blur-md shadow-[0_1px_8px_rgba(40,59,38,0.03)] border-b border-[#efeeea]">
+        <div className="h-16 md:h-20 max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+          {/* Identidade da Marca Beach House */}
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="flex flex-col">
+              <span className="font-grotesk font-semibold text-base sm:text-xl tracking-tight text-[#132512]">
+                BEACH HOUSE
+              </span>
+              <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870] -mt-1">
+                Sports N' Bar
+              </span>
+            </div>
           </div>
 
-          {/* Status, CNPJ e Botão Sair */}
-          <div className="flex items-center gap-2">
-            <div
-              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#EBF2EA] text-[#2D592C] text-[11px] font-bold"
-              title={`CNPJ Autorizado: ${formatCNPJ(adminSession.arena?.cnpj || '60456569000198')}`}
+          {/* Abas Centrais Desktop */}
+          <nav className="hidden md:flex items-center gap-1.5 bg-[#f5f3ef] p-1 rounded-xl border border-[#e4e2de]">
+            <button
+              type="button"
+              onClick={() => setActiveTab('products')}
+              className={`px-4 py-2 uppercase tracking-wider text-xs font-grotesk font-semibold rounded-lg transition-all cursor-pointer ${
+                activeTab === 'products'
+                  ? 'bg-[#283b26] text-white shadow-xs'
+                  : 'text-[#434841] hover:text-[#132512] hover:bg-[#efeeea]'
+              }`}
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>{formatCNPJ(adminSession.arena?.cnpj || '60456569000198')}</span>
+              Produtos
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('orders')}
+              className={`px-4 py-2 uppercase tracking-wider text-xs font-grotesk font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'orders'
+                  ? 'bg-[#283b26] text-white shadow-xs'
+                  : 'text-[#434841] hover:text-[#132512] hover:bg-[#efeeea]'
+              }`}
+            >
+              <span>Pedidos</span>
+              {pendingOrdersCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#daeaaa] text-[#161f00]">
+                  {pendingOrdersCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('settings')}
+              className={`px-4 py-2 uppercase tracking-wider text-xs font-grotesk font-semibold rounded-lg transition-all cursor-pointer ${
+                activeTab === 'settings'
+                  ? 'bg-[#283b26] text-white shadow-xs'
+                  : 'text-[#434841] hover:text-[#132512] hover:bg-[#efeeea]'
+              }`}
+            >
+              Perfil / Loja
+            </button>
+          </nav>
+
+          {/* Ações da Direita */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* CNPJ Badge */}
+            <div
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f5f3ef] border border-[#e4e2de] text-xs font-grotesk text-[#132512]"
+              title={`CNPJ Autorizado: ${formatCNPJ(adminSession?.arena?.cnpj || '60456569000198')}`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#566431]" />
+              <span className="font-semibold">{formatCNPJ(adminSession?.arena?.cnpj || '60456569000198')}</span>
             </div>
 
+            {/* Ver Cardápio */}
+            <button
+              type="button"
+              onClick={onBackToMenu}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[#c4c8bf] text-xs font-grotesk font-semibold text-[#132512] hover:bg-[#efeeea] transition shadow-xs cursor-pointer"
+              title="Visualizar o cardápio como cliente"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Ver Cardápio</span>
+            </button>
+
+            {/* Botão Sair */}
             <button
               type="button"
               onClick={onLogout}
-              className="inline-flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200/80 px-2.5 py-1 rounded-full transition cursor-pointer"
-              title="Sair do Painel"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-xs font-grotesk font-bold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              title="Encerrar Sessão"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Sair</span>
+              <span className="hidden sm:inline">Sair</span>
             </button>
           </div>
         </div>
 
-        {/* Abas Segmentadas de Navegação */}
-        <nav aria-label="Seções do Painel" className="flex px-3 gap-1 overflow-x-auto no-scrollbar pt-1 text-sm font-medium max-w-5xl mx-auto w-full border-t border-[#EBE7DF]/40">
-          {/* Aba Produtos */}
+        {/* Barra de Navegação Segmentada Mobile (Abaixo do TopBar) */}
+        <div className="flex md:hidden items-center justify-around px-4 py-2 border-t border-[#efeeea] bg-[#fbf9f5]">
           <button
             type="button"
             onClick={() => setActiveTab('products')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 whitespace-nowrap transition-colors cursor-pointer ${
+            className={`flex-1 py-1.5 text-center text-xs font-grotesk uppercase tracking-wider font-semibold rounded-lg transition-all ${
               activeTab === 'products'
-                ? 'text-[#315433] font-bold border-b-2 border-[#315433]'
-                : 'text-[#6A786D] hover:text-[#1E2B20]'
+                ? 'bg-[#283b26] text-white shadow-xs'
+                : 'text-[#434841] hover:text-[#132512]'
             }`}
           >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Produtos</span>
+            Produtos
           </button>
-
-          {/* Aba Pedidos */}
           <button
             type="button"
             onClick={() => setActiveTab('orders')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 whitespace-nowrap transition-colors cursor-pointer ${
+            className={`flex-1 py-1.5 text-center text-xs font-grotesk uppercase tracking-wider font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
               activeTab === 'orders'
-                ? 'text-[#315433] font-bold border-b-2 border-[#315433]'
-                : 'text-[#6A786D] hover:text-[#1E2B20]'
+                ? 'bg-[#283b26] text-white shadow-xs'
+                : 'text-[#434841] hover:text-[#132512]'
             }`}
           >
-            <ClipboardList className="w-4 h-4" />
             <span>Pedidos</span>
             {pendingOrdersCount > 0 && (
-              <span className="bg-[#315433] text-white text-[10px] font-black px-1.5 py-0.2 rounded-full">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#daeaaa] text-[#161f00]">
                 {pendingOrdersCount}
               </span>
             )}
           </button>
-
-          {/* Aba Dados da Loja */}
           <button
             type="button"
             onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 whitespace-nowrap transition-colors cursor-pointer ${
+            className={`flex-1 py-1.5 text-center text-xs font-grotesk uppercase tracking-wider font-semibold rounded-lg transition-all ${
               activeTab === 'settings'
-                ? 'text-[#315433] font-bold border-b-2 border-[#315433]'
-                : 'text-[#6A786D] hover:text-[#1E2B20]'
+                ? 'bg-[#283b26] text-white shadow-xs'
+                : 'text-[#434841] hover:text-[#132512]'
             }`}
           >
-            <Settings className="w-4 h-4" />
-            <span>Dados & WhatsApp</span>
+            Perfil
           </button>
-        </nav>
+        </div>
       </header>
 
-      {/* Conteúdo Central */}
-      <main className="flex-1 px-4 py-4 max-w-md md:max-w-4xl mx-auto w-full space-y-4">
-        
-        {saveSuccess && (
-          <div className="p-3.5 rounded-2xl bg-[#EAF3E9] border border-emerald-200 text-[#2D592C] flex items-center gap-2.5 text-xs sm:text-sm font-bold animate-in fade-in">
-            <CheckCircle className="w-4 h-4 text-[#2D592C] shrink-0" />
-            <span>Configurações atualizadas e salvas com sucesso.</span>
-          </div>
-        )}
+      {/* ── BEGIN: Conteúdo Principal com Top Ambient Glow ── */}
+      <main className="w-full pt-28 md:pt-24 min-h-screen relative overflow-hidden pb-24">
+        {/* Ambient Top Glow Effect */}
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[840px] h-[320px] bg-[#daeaaa]/20 rounded-full blur-3xl pointer-events-none"></div>
 
-        {productFeedback && (
-          <div className="p-3.5 rounded-2xl bg-[#EAF3E9] border border-emerald-200 text-[#2D592C] flex items-center gap-2.5 text-xs sm:text-sm font-bold animate-in fade-in">
-            <CheckCircle className="w-4 h-4 text-[#2D592C] shrink-0" />
-            <span>{productFeedback}</span>
-          </div>
-        )}
+        <div className="relative max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8">
+          
+          {/* Feedback de Sucesso */}
+          {saveSuccess && (
+            <div className="mb-4 p-3.5 rounded-xl bg-[#daeaaa]/40 border border-[#becd90] text-[#161f00] flex items-center gap-2.5 text-xs sm:text-sm font-semibold animate-in fade-in">
+              <CheckCircle className="w-4 h-4 text-[#566431] shrink-0" />
+              <span>Configurações da loja salvas com sucesso.</span>
+            </div>
+          )}
 
-        {/* 1. ABA DE PRODUTOS (CATÁLOGO MOBILE) */}
-        {activeTab === 'products' && (
-          <div>
-            {/* Header da Seção & Botão Novo Item */}
-            <section className="mb-4">
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold tracking-tight text-[#1E2B20]">Catálogo</h2>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EBF2EA] text-[#315433]">
-                      {filteredAdminProducts.length} itens
+          {productFeedback && (
+            <div className="mb-4 p-3.5 rounded-xl bg-[#daeaaa]/40 border border-[#becd90] text-[#161f00] flex items-center gap-2.5 text-xs sm:text-sm font-semibold animate-in fade-in">
+              <CheckCircle className="w-4 h-4 text-[#566431] shrink-0" />
+              <span>{productFeedback}</span>
+            </div>
+          )}
+
+          {/* Editorial Header Ribbon */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 pt-2 border-b border-[#efeeea]">
+            <div>
+              <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870] block">
+                Painel Administrativo da Arena
+              </span>
+              <h1 className="font-grotesk text-2xl sm:text-3xl font-semibold text-[#132512] tracking-tight mt-0.5">
+                {adminSession?.arena?.nome || storeInfo.name}
+              </h1>
+            </div>
+
+            {/* Metadata Ribbon */}
+            <div className="flex flex-wrap items-center gap-3 py-2 px-3.5 rounded-xl bg-[#f5f3ef]/80 backdrop-blur-sm border border-[#e4e2de] text-xs font-grotesk">
+              <div className="flex items-center gap-1.5 text-[#132512]">
+                <Clock className="w-4 h-4 text-[#283b26]" />
+                <span>Preparo {storeInfo.estimatedTime || '~30 min'}</span>
+              </div>
+              <span className="text-[#c4c8bf]">•</span>
+              <div className="flex items-center gap-1.5 text-[#132512]">
+                <Store className="w-4 h-4 text-[#283b26]" />
+                <span>Arena Beach & Lounges</span>
+              </div>
+              <span className="text-[#c4c8bf]">•</span>
+              <div className="flex items-center gap-1.5 text-[#566431]">
+                <span className="w-2 h-2 rounded-full bg-[#566431] animate-pulse"></span>
+                <span>Aberto até 23h30</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ══════════════════════════════════════════════════════════
+              ABA 1: CATÁLOGO DE PRODUTOS
+          ══════════════════════════════════════════════════════════ */}
+          {activeTab === 'products' && (
+            <div className="pt-6">
+              {/* Barra de Filtros, Categorias e Ações */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6">
+                {/* Categorias Estilo Editorial com Sublinhado Ativo */}
+                <nav
+                  aria-label="Categorias do Cardápio"
+                  className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setProductCategoryFilter('all')}
+                    className="group relative px-3 py-1.5 text-left transition-all duration-200 cursor-pointer shrink-0"
+                  >
+                    <span
+                      className={`font-grotesk text-xs uppercase tracking-wider transition-colors ${
+                        productCategoryFilter === 'all'
+                          ? 'text-[#132512] font-bold'
+                          : 'text-[#434841] hover:text-[#132512]'
+                      }`}
+                    >
+                      Todos ({products.length})
                     </span>
-                  </div>
-                  <p className="text-xs text-[#6A786D] mt-0.5">Gerencie disponibilidade, preços e receitas.</p>
-                </div>
+                    {productCategoryFilter === 'all' && (
+                      <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#132512] rounded-full"></span>
+                    )}
+                  </button>
 
-                {/* Botões de Ação do Catálogo */}
-                <div className="flex items-center gap-2">
+                  {availableCategoriesForFilter.map((cat) => {
+                    const isSelected = productCategoryFilter === cat.id;
+                    const countInCat = products.filter((p) => p.categoryId === cat.id).length;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setProductCategoryFilter(cat.id)}
+                        className="group relative px-3 py-1.5 text-left transition-all duration-200 cursor-pointer shrink-0"
+                      >
+                        <span
+                          className={`font-grotesk text-xs uppercase tracking-wider transition-colors ${
+                            isSelected
+                              ? 'text-[#132512] font-bold'
+                              : 'text-[#434841] hover:text-[#132512]'
+                          }`}
+                        >
+                          {cat.name} ({countInCat})
+                        </span>
+                        {isSelected && (
+                          <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#132512] rounded-full"></span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </nav>
+
+                {/* Busca e Botões de Ação */}
+                <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
+                  {/* Campo de Busca Minimalista */}
+                  <div className="relative w-full sm:w-60">
+                    <Search className="w-4 h-4 text-[#747870] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={productSearchQuery}
+                      onChange={(e) => setProductSearchQuery(e.target.value)}
+                      placeholder="Buscar item..."
+                      className="w-full pl-9 pr-8 py-2 bg-[#f5f3ef] border border-[#e4e2de] rounded-xl text-xs font-grotesk text-[#132512] focus:bg-white focus:border-[#283b26] outline-none transition"
+                    />
+                    {productSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setProductSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747870] hover:text-[#132512]"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Botão Restaurar 81 Itens Oficiais */}
                   <button
                     type="button"
                     onClick={handleRestoreOfficialMenu}
-                    className="shrink-0 inline-flex items-center gap-1.5 bg-[#FAF8F3] hover:bg-[#EBF2EA] text-[#315433] border border-[#DEEAD8] text-xs font-semibold px-3 py-2.5 rounded-xl transition-all cursor-pointer"
-                    title="Restaurar Cardápio Oficial com os 81 produtos cadastrados do cardápio"
+                    className="inline-flex items-center gap-1.5 bg-white hover:bg-[#f5f3ef] text-[#132512] border border-[#c4c8bf] text-xs font-grotesk uppercase tracking-wider font-semibold px-3 py-2 rounded-xl transition cursor-pointer shadow-2xs"
+                    title="Restaurar Cardápio Oficial com os 81 produtos cadastrados do PDF"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Restaurar 81 Itens</span>
+                    <span className="hidden sm:inline">Restaurar 81</span>
                   </button>
 
+                  {/* Botão Novo Item */}
                   <button
                     type="button"
                     onClick={() => setIsAddProductOpen(true)}
-                    className="shrink-0 inline-flex items-center gap-1.5 bg-[#315433] hover:bg-[#233F25] active:scale-95 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl shadow-xs transition-all duration-150 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 bg-[#283b26] hover:bg-[#132512] active:scale-95 text-white text-xs font-grotesk uppercase tracking-wider font-semibold px-3.5 py-2 rounded-xl shadow-xs transition cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
                     <span>Novo Item</span>
                   </button>
                 </div>
               </div>
 
-              {/* Filtro Rápido de Categorias (Horizontal Scroll) */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 -mx-4 px-4">
-                <button
-                  type="button"
-                  onClick={() => setProductCategoryFilter('all')}
-                  className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
-                    productCategoryFilter === 'all'
-                      ? 'font-semibold bg-[#315433] text-white shadow-xs'
-                      : 'font-medium bg-white text-[#6A786D] border border-[#EBE7DF] hover:border-[#315433]'
-                  }`}
-                >
-                  Todos ({products.length})
-                </button>
-
-                {availableCategoriesForFilter.map((cat) => {
-                  const isActive = productCategoryFilter === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setProductCategoryFilter(cat.id)}
-                      className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
-                        isActive
-                          ? 'font-semibold bg-[#315433] text-white shadow-xs'
-                          : 'font-medium bg-white text-[#6A786D] border border-[#EBE7DF] hover:border-[#315433]'
-                      }`}
-                    >
-                      {cat.name}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Busca Rápida de Produtos */}
-              <div className="relative w-full mt-3">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-stone-400">
-                  <Search className="w-3.5 h-3.5" />
-                </span>
-                <input
-                  type="search"
-                  value={productSearchQuery}
-                  onChange={(e) => setProductSearchQuery(e.target.value)}
-                  placeholder="Buscar prato, drink ou ingrediente..."
-                  className="w-full pl-8 pr-4 py-2 rounded-xl bg-white border border-[#EBE7DF] text-xs text-[#1E2B20] placeholder-[#6A786D]/70 focus:outline-none focus:border-[#315433] transition"
-                />
-              </div>
-            </section>
-
-            {/* Lista dos Cards de Produtos */}
-            {filteredAdminProducts.length === 0 ? (
-              <div className="py-12 text-center text-[#6A786D] space-y-2 bg-white rounded-2xl border border-[#EBE7DF] p-6">
-                <ShoppingBag className="w-10 h-10 mx-auto opacity-40 text-[#6A786D]" />
-                <p className="text-sm font-semibold">Nenhum produto encontrado neste filtro.</p>
-              </div>
-            ) : (
-              <div className="space-y-3" role="list">
-                {filteredAdminProducts.map((product) => (
-                  <article
-                    key={product.id}
-                    className="bg-white rounded-2xl p-3 border border-[#EBE7DF]/80 shadow-xs transition-all"
-                  >
-                    <div className="flex gap-3">
-                      {/* Foto do Produto */}
-                      <div className="relative w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-[#FAF8F3] border border-[#EBE7DF]">
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=200&q=80';
-                          }}
-                        />
-                      </div>
-
-                      {/* Informações do Produto */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-[#315433] bg-[#DEEAD8]/70 px-2 py-0.5 rounded-md">
-                            {getCategoryLabel(product.categoryId, product.categoryName)}
-                          </span>
-                        </div>
-                        <h3 className="text-sm font-bold text-[#1E2B20] truncate leading-snug">
-                          {product.name}
-                        </h3>
-                        <p className="text-xs text-[#6A786D] line-clamp-2 mt-0.5 leading-relaxed">
-                          {product.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Rodapé do Card: Preço, Status e Ações */}
-                    <div className="mt-3 pt-2.5 border-t border-[#EBE7DF]/60 flex items-center justify-between gap-2">
-                      {/* Pílula de Preço */}
-                      <div className="flex items-center gap-1.5 bg-[#FAF8F3] px-2.5 py-1.5 rounded-lg border border-[#EBE7DF]/70">
-                        <span className="text-[10px] font-semibold text-[#6A786D]">PREÇO</span>
-                        <span className="text-xs font-bold text-[#1E2B20]">
-                          {formatCurrency(product.price)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        {/* Status Toggle (Ativo / Pausado) */}
-                        <button
-                          type="button"
-                          onClick={() => toggleProductAvailability(product.id)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer border ${
-                            product.isAvailable
-                              ? 'bg-[#EAF3E9] text-[#2D592C] border-emerald-200/60'
-                              : 'bg-[#FDF1F0] text-[#C94A4A] border-red-200/60'
-                          }`}
-                          title="Alternar disponibilidade no cardápio"
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              product.isAvailable ? 'bg-emerald-600' : 'bg-red-600'
-                            }`}
-                          ></span>
-                          <span>{product.isAvailable ? 'Ativo' : 'Pausado'}</span>
-                        </button>
-
-                        {/* Botão Editar Produto */}
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(product)}
-                          className="w-8 h-8 rounded-lg bg-[#FAF8F3] hover:bg-[#EBF2EA] border border-[#EBE7DF]/80 flex items-center justify-center text-[#6A786D] hover:text-[#315433] transition-colors cursor-pointer"
-                          title="Editar produto"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* Botão Excluir Produto */}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteProduct(product.id, product.name)}
-                          className="w-8 h-8 rounded-lg bg-[#FDF1F0]/60 hover:bg-[#FDF1F0] border border-red-200/50 flex items-center justify-center text-[#C94A4A] transition-colors cursor-pointer"
-                          title="Excluir produto"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 2. ABA DE PEDIDOS (MOBILE) */}
-        {activeTab === 'orders' && (
-          <div>
-            <section className="mb-4">
-              <div className="flex items-start justify-between gap-3 mb-3">
+              {/* Título de Seção Editorial */}
+              <div className="flex items-baseline justify-between mb-6">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold tracking-tight text-[#1E2B20]">Pedidos</h2>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EBF2EA] text-[#315433]">
-                      {orders.length} pedidos
-                    </span>
-                    {pendingOrdersCount > 0 && (
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                        {pendingOrdersCount} pendente{pendingOrdersCount > 1 ? 's' : ''}
-                      </span>
-                    )}
+                  <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870]">
+                    Seleção para Mesa & Lounge
+                  </span>
+                  <h2 className="font-grotesk text-xl sm:text-2xl font-semibold text-[#132512] tracking-tight">
+                    {productCategoryFilter === 'all'
+                      ? 'Todos os Produtos'
+                      : availableCategoriesForFilter.find((c) => c.id === productCategoryFilter)?.name || 'Categoria'}
+                  </h2>
+                </div>
+                <span className="font-grotesk text-xs text-[#747870]">
+                  {filteredAdminProducts.length} itens encontrados
+                </span>
+              </div>
+
+              {/* Bento Editorial Grid (2 Colunas em Desktop / 1 Coluna em Mobile) */}
+              {filteredAdminProducts.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-[#efeeea] p-8">
+                  <div className="w-12 h-12 rounded-full bg-[#f5f3ef] text-[#747870] flex items-center justify-center mx-auto mb-3">
+                    <Search className="w-5 h-5" />
                   </div>
-                  <p className="text-xs text-[#6A786D] mt-0.5">Acompanhe novos pedidos e chame clientes.</p>
+                  <h3 className="font-grotesk font-bold text-base text-[#132512]">Nenhum produto localizado</h3>
+                  <p className="font-manrope text-xs text-[#747870] mt-1 max-w-sm mx-auto">
+                    Tente ajustar o termo da busca ou selecione outra categoria no menu superior.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+                  {filteredAdminProducts.map((product) => {
+                    const isAvailable = product.isAvailable !== false;
+                    const hasOptions = product.options && product.options.length > 1;
+                    const startingPrice = hasOptions
+                      ? Math.min(...product.options.map((o) => o.price))
+                      : product.price;
+
+                    return (
+                      <article
+                        key={product.id}
+                        className={`group flex flex-col bg-white rounded-2xl overflow-hidden border border-[#efeeea] shadow-[0_2px_12px_rgba(40,59,38,0.03)] hover:shadow-md transition-all duration-300 ${
+                          !isAvailable ? 'opacity-70 bg-[#fbf9f5]' : ''
+                        }`}
+                      >
+                        {/* Imagem do Produto com Badges */}
+                        <div className="relative w-full aspect-[16/10] overflow-hidden bg-[#efeeea]">
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            loading="lazy"
+                            className={`w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500 ease-out ${
+                              !isAvailable ? 'grayscale' : ''
+                            }`}
+                            onError={(e) => {
+                              e.target.src =
+                                'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+                            }}
+                          />
+
+                          {/* Badge de Destaque ou Categoria */}
+                          <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
+                            {product.badge && (
+                              <span className="px-2.5 py-1 bg-[#daeaaa] text-[#161f00] font-grotesk text-[10px] font-bold uppercase tracking-widest rounded-lg backdrop-blur-sm shadow-2xs">
+                                {product.badge}
+                              </span>
+                            )}
+                            <span className="px-2 py-0.5 bg-black/60 text-white font-grotesk text-[10px] uppercase tracking-wider rounded-md backdrop-blur-sm">
+                              {getCategoryLabel(product.categoryId, product.categoryName)}
+                            </span>
+                          </div>
+
+                          {/* Badge Esgotado / Pausado */}
+                          {!isAvailable && (
+                            <div className="absolute top-3 right-3">
+                              <span className="px-2.5 py-1 bg-rose-600 text-white font-grotesk text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm">
+                                Pausado
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Conteúdo do Card */}
+                        <div className="p-5 flex flex-col flex-1 justify-between gap-4">
+                          <div>
+                            <div className="flex items-baseline justify-between gap-3">
+                              <h3 className="font-grotesk text-base sm:text-lg font-bold text-[#132512] tracking-tight group-hover:text-[#283b26] transition-colors leading-snug">
+                                {product.name}
+                              </h3>
+                              <div className="text-right shrink-0">
+                                {hasOptions && (
+                                  <span className="text-[10px] font-grotesk uppercase tracking-wider text-[#747870] block">
+                                    A partir de
+                                  </span>
+                                )}
+                                <span className="font-grotesk text-base sm:text-lg font-bold text-[#132512] whitespace-nowrap">
+                                  {formatCurrency(startingPrice)}
+                                </span>
+                              </div>
+                            </div>
+
+                            <p className="font-manrope text-xs sm:text-sm text-[#434841] mt-1.5 leading-relaxed line-clamp-2">
+                              {product.description || 'Sem descrição cadastrada.'}
+                            </p>
+
+                            {/* Pílulas de Doses / Opções se houver */}
+                            {hasOptions && (
+                              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                {product.options.map((opt) => (
+                                  <span
+                                    key={opt.name}
+                                    className="px-2 py-0.5 rounded-md bg-[#f5f3ef] border border-[#e4e2de] text-[10px] font-grotesk font-semibold text-[#132512]"
+                                  >
+                                    {opt.name}: {formatCurrency(opt.price)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Rodapé do Card com Ações Administrativas */}
+                          <div className="pt-3 border-t border-[#efeeea] flex items-center justify-between gap-2">
+                            {/* Toggle de Disponibilidade */}
+                            <button
+                              type="button"
+                              onClick={() => toggleProductAvailability(product.id)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-grotesk font-bold cursor-pointer transition border ${
+                                isAvailable
+                                  ? 'bg-[#daeaaa] text-[#161f00] border-[#becd90] hover:bg-[#becd90]'
+                                  : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                              }`}
+                              title="Alternar se o item aparece para o cliente"
+                            >
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  isAvailable ? 'bg-[#566431]' : 'bg-rose-600'
+                                }`}
+                              ></span>
+                              <span>{isAvailable ? 'Ativo na Loja' : 'Pausado'}</span>
+                            </button>
+
+                            {/* Ações de Edição e Exclusão */}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(product)}
+                                className="w-8 h-8 rounded-xl bg-[#f5f3ef] hover:bg-[#efeeea] border border-[#e4e2de] flex items-center justify-center text-[#434841] hover:text-[#132512] transition cursor-pointer"
+                                title="Editar produto"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteProduct(product.id, product.name)}
+                                className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200/60 flex items-center justify-center text-rose-700 transition cursor-pointer"
+                                title="Remover produto"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════
+              ABA 2: GESTÃO DE PEDIDOS
+          ══════════════════════════════════════════════════════════ */}
+          {activeTab === 'orders' && (
+            <div className="pt-6 space-y-6">
+              {/* Header de Pedidos & Ações */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#efeeea]">
+                <div>
+                  <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870]">
+                    Controle de Comandas & Mesas
+                  </span>
+                  <h2 className="font-grotesk text-xl sm:text-2xl font-semibold text-[#132512] tracking-tight">
+                    Gestão de Pedidos
+                  </h2>
                 </div>
 
-                {/* Botão de Relatório PDF */}
-                <button
-                  type="button"
-                  onClick={() => setIsPdfModalOpen(true)}
-                  className="shrink-0 inline-flex items-center gap-1.5 bg-white hover:bg-[#FAF8F3] text-[#315433] border border-[#EBE7DF] text-xs font-semibold px-3 py-2 rounded-xl shadow-xs transition-all cursor-pointer"
-                  title="Filtrar por data e emitir relatório dos pedidos finalizados em PDF"
-                >
-                  <FileText className="w-3.5 h-3.5 text-[#315433]" />
-                  <span>Relatório PDF</span>
-                  {orders.filter((o) => o.status === 'entregue').length > 0 && (
-                    <span className="bg-[#315433] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
-                      {orders.filter((o) => o.status === 'entregue').length}
-                    </span>
-                  )}
-                </button>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsPdfModalOpen(true)}
+                    className="inline-flex items-center gap-2 bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs uppercase tracking-wider font-semibold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Relatório em PDF</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Filtros de Status (Horizontal Scroll) */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 -mx-4 px-4">
-                <button
-                  type="button"
-                  onClick={() => setOrderFilter('all')}
-                  className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
-                    orderFilter === 'all'
-                      ? 'font-semibold bg-[#315433] text-white shadow-xs'
-                      : 'font-medium bg-white text-[#6A786D] border border-[#EBE7DF]'
-                  }`}
-                >
-                  Todos ({orders.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOrderFilter('pendente')}
-                  className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
-                    orderFilter === 'pendente'
-                      ? 'font-semibold bg-amber-600 text-white shadow-xs'
-                      : 'font-medium bg-white text-[#6A786D] border border-[#EBE7DF]'
-                  }`}
-                >
-                  Pendentes ({orders.filter((o) => o.status === 'pendente').length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOrderFilter('em_preparo')}
-                  className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
-                    orderFilter === 'em_preparo'
-                      ? 'font-semibold bg-blue-600 text-white shadow-xs'
-                      : 'font-medium bg-white text-[#6A786D] border border-[#EBE7DF]'
-                  }`}
-                >
-                  Em Preparo ({orders.filter((o) => o.status === 'em_preparo').length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOrderFilter('entregue')}
-                  className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
-                    orderFilter === 'entregue'
-                      ? 'font-semibold bg-emerald-600 text-white shadow-xs'
-                      : 'font-medium bg-white text-[#6A786D] border border-[#EBE7DF]'
-                  }`}
-                >
-                  Finalizados ({orders.filter((o) => o.status === 'entregue').length})
-                </button>
-              </div>
-            </section>
-
-            {/* Lista dos Cards de Pedidos */}
-            {filteredOrders.length === 0 ? (
-              <div className="py-12 text-center text-[#6A786D] space-y-2 bg-white rounded-2xl border border-[#EBE7DF] p-6">
-                <ClipboardList className="w-10 h-10 mx-auto opacity-40 text-[#6A786D]" />
-                <p className="text-sm font-semibold">Nenhum pedido encontrado nesta visualização.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredOrders.map((order) => {
-                  const isDelivery = order.orderType === 'delivery';
-
-                  return (
-                    <article
-                      key={order.id}
-                      className="bg-white rounded-2xl p-3.5 border border-[#EBE7DF]/80 shadow-xs space-y-3"
-                    >
-                      {/* Topo: ID, Horário, Tipo e Status */}
-                      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[#EBE7DF]/60">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-xs text-[#1E2B20]">
-                            Pedido #{order.id}
-                          </span>
-                          <span className="text-[11px] text-[#6A786D]">
-                            {order.createdAt
-                              ? new Date(order.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                              : ''}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                              isDelivery
-                                ? 'bg-[#DEEAD8] text-[#2D592C]'
-                                : 'bg-[#FAF8F3] text-[#6A786D] border border-[#EBE7DF]'
-                            }`}
-                          >
-                            {isDelivery ? 'Delivery' : 'Balcão'}
-                          </span>
-                        </div>
-
-                        <span
-                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md ${
-                            order.status === 'pendente'
-                              ? 'bg-amber-100 text-amber-800'
-                              : order.status === 'em_preparo'
-                              ? 'bg-blue-100 text-blue-800'
-                              : order.status === 'entregue'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-rose-100 text-rose-800'
-                          }`}
-                        >
-                          {order.status === 'pendente' && 'Pendente'}
-                          {order.status === 'em_preparo' && 'Em Preparo'}
-                          {order.status === 'entregue' && 'Finalizado'}
-                          {order.status === 'cancelado' && 'Cancelado'}
-                        </span>
-                      </div>
-
-                      {/* Informações do Cliente & Local */}
-                      <div className="text-xs space-y-1">
-                        <div className="flex justify-between items-start">
-                          <span className="font-bold text-[#1E2B20]">{order.customerName}</span>
-                          <span className="font-mono text-[#6A786D] text-[11px]">
-                            {formatPhone(order.customerPhone)}
-                          </span>
-                        </div>
-                        {isDelivery && order.address ? (
-                          <p className="text-[#6A786D] text-[11px]">
-                            {order.address.street}, {order.address.number} - {order.address.neighborhood}
-                            {order.address.complement ? ` (${order.address.complement})` : ''}
-                          </p>
-                        ) : (
-                          <p className="text-[#6A786D] text-[11px]">Retirada direta no balcão</p>
-                        )}
-                      </div>
-
-                      {/* Lista Resumida de Itens */}
-                      <div className="bg-[#FAF8F3] rounded-xl p-2.5 border border-[#EBE7DF]/70 text-xs space-y-1">
-                        {order.items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center py-0.5">
-                            <span className="font-medium text-[#1E2B20]">
-                              {item.quantity}x {item.product.name}
-                            </span>
-                            <span className="font-semibold text-[#1E2B20]">
-                              {formatCurrency(item.product.price * item.quantity)}
-                            </span>
-                          </div>
-                        ))}
-                        {order.generalNotes && (
-                          <div className="text-[11px] text-[#315433] italic pt-1 border-t border-[#EBE7DF]/60">
-                            Obs: {order.generalNotes}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Total & Ações de Operação */}
-                      <div className="pt-2 border-t border-[#EBE7DF]/60 flex items-center justify-between gap-2">
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-[#6A786D] block">Total</span>
-                          <span className="text-sm font-bold text-[#315433]">
-                            {formatCurrency(order.total)}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleCallCustomer(order)}
-                            className="bg-[#315433] hover:bg-[#233F25] text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
-                            title="Chamar Cliente no WhatsApp"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            <span>WhatsApp</span>
-                          </button>
-
-                          <select
-                            value={order.status}
-                            onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                            className="bg-white border border-[#EBE7DF] text-[#1E2B20] text-xs font-semibold rounded-lg px-2 py-1.5 outline-none cursor-pointer"
-                          >
-                            <option value="pendente">Pendente</option>
-                            <option value="em_preparo">Em Preparo</option>
-                            <option value="entregue">Finalizado</option>
-                            <option value="cancelado">Cancelado</option>
-                          </select>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteOrder(order.id)}
-                            className="w-7 h-7 rounded-lg bg-[#FDF1F0] text-[#C94A4A] border border-red-200/50 flex items-center justify-center cursor-pointer hover:bg-red-100 transition-colors"
-                            title="Excluir pedido"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 3. ABA DE DADOS DA LOJA (MOBILE) */}
-        {activeTab === 'settings' && (
-          <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#EBE7DF]/80 shadow-xs space-y-4">
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-[#1E2B20]">
-                Dados da Loja & WhatsApp
-              </h2>
-              <p className="text-xs text-[#6A786D] mt-0.5">
-                Configure os dados oficiais de atendimento e entrega.
-              </p>
-            </div>
-
-            <form onSubmit={handleSaveStore} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                  Nome do Estabelecimento
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-bold text-[#1E2B20]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                  Slogan / Subtítulo
-                </label>
-                <input
-                  type="text"
-                  value={formData.subtitle}
-                  onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-medium text-[#1E2B20]"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                    WhatsApp Oficial (com DDD)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.whatsappNumber}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        whatsappNumber: e.target.value.replace(/\D/g, ''),
-                      })
-                    }
-                    placeholder="Ex: 5511987654321"
-                    className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-mono font-bold text-[#1E2B20]"
-                  />
-                  <span className="text-[10px] text-[#6A786D] mt-0.5 block">
-                    Formato: 55 + DDD + Número
+              {/* Painel com Métricas Rápidas */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                <div className="p-4 rounded-2xl bg-white border border-[#efeeea] shadow-2xs">
+                  <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870] block">
+                    Total Pedidos
+                  </span>
+                  <span className="font-grotesk text-2xl font-bold text-[#132512] mt-1 block">
+                    {orders.length}
                   </span>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                    Taxa de Entrega (R$)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formData.deliveryFee}
-                    onChange={(e) => setFormData({ ...formData, deliveryFee: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-bold text-[#1E2B20]"
-                  />
+                <div className="p-4 rounded-2xl bg-white border border-[#efeeea] shadow-2xs">
+                  <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870] block">
+                    Pendentes
+                  </span>
+                  <span className="font-grotesk text-2xl font-bold text-amber-600 mt-1 block">
+                    {pendingOrdersCount}
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white border border-[#efeeea] shadow-2xs">
+                  <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870] block">
+                    Faturamento Entregue
+                  </span>
+                  <span className="font-grotesk text-2xl font-bold text-[#566431] mt-1 block">
+                    {formatCurrency(totalRevenueAllTime)}
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white border border-[#efeeea] shadow-2xs">
+                  <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870] block">
+                    Concluídos
+                  </span>
+                  <span className="font-grotesk text-2xl font-bold text-[#132512] mt-1 block">
+                    {completedOrdersList.length}
+                  </span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Filtro por Status do Pedido */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                {[
+                  { id: 'all', label: `Todos (${orders.length})` },
+                  { id: 'pendente', label: `Pendentes (${pendingOrdersCount})` },
+                  { id: 'em_preparo', label: 'Em Preparo' },
+                  { id: 'entregue', label: 'Entregues' },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setOrderFilter(st.id)}
+                    className={`px-3.5 py-1.5 rounded-xl font-grotesk text-xs uppercase tracking-wider font-semibold transition cursor-pointer whitespace-nowrap ${
+                      orderFilter === st.id
+                        ? 'bg-[#283b26] text-white shadow-xs'
+                        : 'bg-white text-[#434841] border border-[#e4e2de] hover:border-[#283b26]'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Lista de Pedidos */}
+              {filteredOrders.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-[#efeeea] p-8">
+                  <ClipboardList className="w-10 h-10 text-[#747870] mx-auto mb-3" />
+                  <h3 className="font-grotesk font-bold text-base text-[#132512]">Nenhum pedido neste filtro</h3>
+                  <p className="font-manrope text-xs text-[#747870] mt-1">
+                    Novos pedidos enviados pelos clientes aparecerão aqui em tempo real.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredOrders.map((order) => {
+                    const statusColors = {
+                      pendente: 'bg-amber-100 text-amber-900 border-amber-200',
+                      em_preparo: 'bg-sky-100 text-sky-900 border-sky-200',
+                      entregue: 'bg-[#daeaaa] text-[#161f00] border-[#becd90]',
+                    };
+
+                    const statusLabels = {
+                      pendente: 'Pendente',
+                      em_preparo: 'Em Preparo',
+                      entregue: 'Entregue / Concluído',
+                    };
+
+                    return (
+                      <div
+                        key={order.id}
+                        className="bg-white rounded-2xl border border-[#efeeea] shadow-xs p-5 flex flex-col justify-between gap-4"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2 pb-3 border-b border-[#efeeea]">
+                            <div>
+                              <span className="font-grotesk text-xs font-bold text-[#747870]">
+                                #{order.id?.slice(-6) || 'PEDIDO'}
+                              </span>
+                              <h3 className="font-grotesk text-base font-bold text-[#132512]">
+                                {order.customerName}
+                              </h3>
+                              <span className="font-manrope text-xs text-[#747870]">
+                                {order.createdAt ? new Date(order.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Recente'}
+                              </span>
+                            </div>
+
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-xs font-grotesk font-bold uppercase tracking-wider border ${
+                                statusColors[order.status] || 'bg-stone-100 text-stone-700'
+                              }`}
+                            >
+                              {statusLabels[order.status] || order.status}
+                            </span>
+                          </div>
+
+                          {/* Itens do Pedido */}
+                          <div className="py-3 space-y-2">
+                            {order.items?.map((item, idx) => (
+                              <div key={idx} className="flex items-center justify-between text-xs font-manrope">
+                                <span className="text-[#132512]">
+                                  <strong className="font-grotesk">{item.quantity}x</strong> {item.name}
+                                </span>
+                                <span className="font-grotesk font-semibold text-[#132512]">
+                                  {formatCurrency(item.price * item.quantity)}
+                                </span>
+                              </div>
+                            ))}
+
+                            {order.notes && (
+                              <div className="p-2.5 bg-[#f5f3ef] rounded-xl text-[11px] text-[#434841] italic mt-2 border border-[#e4e2de]">
+                                Obs: {order.notes}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Total e Pagamento */}
+                          <div className="pt-3 border-t border-[#efeeea] flex items-center justify-between text-xs">
+                            <span className="text-[#747870]">
+                              Forma: <strong className="text-[#132512] font-grotesk uppercase">{order.paymentMethod || 'Pix'}</strong>
+                            </span>
+                            <span className="font-grotesk text-lg font-bold text-[#132512]">
+                              {formatCurrency(order.total)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Ações do Pedido */}
+                        <div className="pt-3 border-t border-[#efeeea] flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCallCustomer(order)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-grotesk font-bold transition cursor-pointer"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>WhatsApp</span>
+                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            {order.status === 'pendente' && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateOrderStatus(order.id, 'em_preparo')}
+                                className="px-3 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 text-xs font-grotesk font-bold transition cursor-pointer"
+                              >
+                                Preparar
+                              </button>
+                            )}
+
+                            {order.status !== 'entregue' && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateOrderStatus(order.id, 'entregue')}
+                                className="px-3 py-2 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white text-xs font-grotesk font-bold transition cursor-pointer"
+                              >
+                                Finalizar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════
+              ABA 3: DADOS DA LOJA & WHATSAPP
+          ══════════════════════════════════════════════════════════ */}
+          {activeTab === 'settings' && (
+            <div className="pt-6 max-w-2xl mx-auto">
+              <div className="bg-white rounded-2xl border border-[#efeeea] p-6 shadow-xs space-y-6">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                    Chave Pix
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.pixKey}
-                    onChange={(e) => setFormData({ ...formData, pixKey: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-mono text-[#1E2B20]"
-                  />
+                  <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870]">
+                    Configurações & Canal de Atendimento
+                  </span>
+                  <h2 className="font-grotesk text-xl font-bold text-[#132512] tracking-tight">
+                    Dados do Estabelecimento
+                  </h2>
+                  <p className="font-manrope text-xs text-[#747870] mt-1">
+                    Essas informações são exibidas no topo do cardápio e usadas para o envio dos pedidos via WhatsApp.
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                    Tempo Médio
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.estimatedTime}
-                    onChange={(e) => setFormData({ ...formData, estimatedTime: e.target.value })}
-                    placeholder="30-45 min"
-                    className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none text-[#1E2B20]"
-                  />
-                </div>
+                <form onSubmit={handleSaveStore} className="space-y-4 text-xs font-manrope">
+                  <div>
+                    <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
+                      Nome da Loja
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
+                      Subtítulo / Slogan
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.subtitle}
+                      onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk text-[#132512]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
+                        WhatsApp de Pedidos (DDD + Número)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.whatsappNumber}
+                        onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value.replace(/\D/g, '') })}
+                        placeholder="Ex.: 44999102232"
+                        className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk text-[#132512]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
+                        Chave Pix da Loja (CNPJ / Telefone)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.pixKey}
+                        onChange={(e) => setFormData({ ...formData, pixKey: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk text-[#132512]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
+                      Endereço da Loja / Arena
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk text-[#132512]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
+                        Tempo Médio de Preparo
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.estimatedTime}
+                        onChange={(e) => setFormData({ ...formData, estimatedTime: e.target.value })}
+                        placeholder="Ex.: 25-40 min"
+                        className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk text-[#132512]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
+                        Taxa de Entrega (R$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        value={formData.deliveryFee}
+                        onChange={(e) => setFormData({ ...formData, deliveryFee: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk text-[#132512]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
+                      Horário de Funcionamento
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.openingHours}
+                      onChange={(e) => setFormData({ ...formData, openingHours: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk text-[#132512]"
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-[#efeeea] flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => onResetStoreInfo && onResetStoreInfo()}
+                      className="px-4 py-2.5 rounded-xl border border-[#e4e2de] text-[#747870] hover:text-[#132512] font-grotesk text-xs uppercase tracking-wider font-semibold cursor-pointer"
+                    >
+                      Restaurar Padrão
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs uppercase tracking-wider font-semibold py-2.5 px-6 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Salvar Alterações</span>
+                    </button>
+                  </div>
+                </form>
               </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                  Endereço do Estabelecimento
-                </label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none text-[#1E2B20]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                  Horário de Funcionamento
-                </label>
-                <input
-                  type="text"
-                  value={formData.openingHours}
-                  onChange={(e) => setFormData({ ...formData, openingHours: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none text-[#1E2B20]"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-[#EBE7DF] flex items-center justify-between gap-2.5">
-                <button
-                  type="button"
-                  onClick={onResetStoreInfo}
-                  className="text-[#6A786D] hover:text-[#1E2B20] text-xs font-semibold flex items-center gap-1.5 p-2 rounded-xl hover:bg-[#FAF8F3] transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Restaurar</span>
-                </button>
-
-                <button
-                  type="submit"
-                  className="bg-[#315433] hover:bg-[#233F25] text-white font-semibold py-2 px-5 rounded-xl text-xs flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Salvar Alterações</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
+            </div>
+          )}
+        </div>
       </main>
 
-      {/* Rodapé Resumo Mobile */}
-      <footer className="mt-auto border-t border-[#EBE7DF] bg-white px-4 py-3">
-        <div className="max-w-md md:max-w-4xl mx-auto flex items-center justify-between text-xs text-[#6A786D]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>Cardápio online sincronizado</span>
-          </div>
-          <span className="font-medium text-[#315433]">{storeInfo.name}</span>
-        </div>
-      </footer>
-
-      {/* Modal de Adicionar Novo Produto */}
+      {/* ══════════════════════════════════════════════════════════
+          MODAL: ADICIONAR NOVO PRODUTO
+      ══════════════════════════════════════════════════════════ */}
       {isAddProductOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
           <div className="fixed inset-0" onClick={() => setIsAddProductOpen(false)} />
 
-          <div className="relative w-full max-w-lg bg-white rounded-2xl sm:rounded-3xl border border-[#EBE7DF] shadow-2xl overflow-hidden z-10 flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="p-4 border-b border-[#EBE7DF] flex items-center justify-between bg-[#FAF8F3]">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-[#e4e2de] shadow-2xl overflow-hidden z-10 flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-[#efeeea] flex items-center justify-between bg-[#fbf9f5]">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-[#EBF2EA] text-[#315433] rounded-xl border border-[#DEEAD8]">
-                  <Plus className="w-4 h-4 stroke-[3]" />
+                <div className="p-1.5 bg-[#daeaaa] text-[#161f00] rounded-xl">
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-[#1E2B20]">Adicionar Novo Produto</h3>
-                  <p className="text-[11px] text-[#6A786D]">Preencha os dados do cardápio</p>
+                  <h3 className="font-grotesk text-base font-bold text-[#132512]">Cadastrar Novo Item</h3>
+                  <p className="font-manrope text-[11px] text-[#747870]">Adicione um prato, porção ou bebida</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddProductOpen(false)}
-                className="p-1.5 text-[#6A786D] hover:text-[#1E2B20] rounded-xl hover:bg-[#EBF2EA] cursor-pointer"
+                className="p-1.5 text-[#747870] hover:text-[#132512] rounded-xl hover:bg-[#efeeea] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateProduct} className="p-4 sm:p-6 space-y-3.5 text-xs overflow-y-auto max-h-[80vh]">
+            <form onSubmit={handleCreateProduct} className="p-5 space-y-3.5 text-xs font-manrope overflow-y-auto max-h-[80vh]">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Nome do Produto *
                 </label>
                 <input
@@ -1147,18 +1284,18 @@ export function AdminPage({
                   value={newProduct.name}
                   onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                   placeholder="Ex.: Iscas de Tilápia Crocantes"
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-bold text-[#1E2B20]"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Grupo / Categoria *
                 </label>
                 <select
                   value={newProduct.categoryId}
                   onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-bold text-[#1E2B20]"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
                 >
                   {DEFAULT_CATEGORIES.map((cat) => (
                     <option key={cat.id} value={cat.id}>
@@ -1175,13 +1312,13 @@ export function AdminPage({
                     value={newProduct.customCategoryName}
                     onChange={(e) => setNewProduct({ ...newProduct, customCategoryName: e.target.value })}
                     placeholder="Digite o nome do novo grupo"
-                    className="w-full mt-2 p-2 rounded-xl border border-[#EBE7DF] bg-white focus:border-[#315433] outline-none text-xs font-bold"
+                    className="w-full mt-2 p-2 rounded-xl border border-[#e4e2de] bg-white focus:border-[#283b26] outline-none text-xs font-grotesk font-semibold"
                   />
                 )}
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Valor (R$) *
                 </label>
                 <input
@@ -1192,12 +1329,12 @@ export function AdminPage({
                   value={newProduct.price}
                   onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
                   placeholder="Ex.: 35.00"
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-bold text-[#1E2B20]"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Descrição dos Ingredientes / Porção
                 </label>
                 <textarea
@@ -1205,12 +1342,12 @@ export function AdminPage({
                   value={newProduct.description}
                   onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                   placeholder="Ex.: Empanado em farinha especial com raspas de limão e molho tártaro."
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none resize-none text-[#1E2B20]"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none resize-none text-[#132512]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Link / URL da Foto do Produto
                 </label>
                 <input
@@ -1218,24 +1355,24 @@ export function AdminPage({
                   value={newProduct.imageUrl}
                   onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
                   placeholder="https://exemplo.com/foto.jpg (opcional)"
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none text-[#1E2B20] font-mono text-xs"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none text-[#132512] font-mono text-xs"
                 />
-                <p className="text-[10px] text-[#6A786D] mt-1">
+                <p className="text-[10px] text-[#747870] mt-1">
                   Se deixar em branco, uma foto profissional temática da categoria será usada automaticamente.
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-[#EBE7DF] flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-[#efeeea] flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsAddProductOpen(false)}
-                  className="px-3.5 py-2 rounded-xl border border-[#EBE7DF] text-[#6A786D] hover:text-[#1E2B20] font-semibold text-xs cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl border border-[#e4e2de] text-[#747870] hover:text-[#132512] font-grotesk text-xs uppercase tracking-wider font-semibold cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#315433] hover:bg-[#233F25] text-white font-semibold py-2 px-4 rounded-xl text-xs shadow-xs transition-colors cursor-pointer"
+                  className="bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs uppercase tracking-wider font-semibold py-2 px-4 rounded-xl shadow-xs transition cursor-pointer"
                 >
                   Cadastrar Produto
                 </button>
@@ -1245,50 +1382,53 @@ export function AdminPage({
         </div>
       )}
 
-      {/* Modal de Editar Produto Existente */}
+      {/* ══════════════════════════════════════════════════════════
+          MODAL: EDITAR PRODUTO EXISTENTE
+      ══════════════════════════════════════════════════════════ */}
       {isEditProductOpen && editingProduct && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
           <div className="fixed inset-0" onClick={() => setIsEditProductOpen(false)} />
 
-          <div className="relative w-full max-w-lg bg-white rounded-2xl sm:rounded-3xl border border-[#EBE7DF] shadow-2xl overflow-hidden z-10 flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="p-4 border-b border-[#EBE7DF] flex items-center justify-between bg-[#FAF8F3]">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-[#e4e2de] shadow-2xl overflow-hidden z-10 flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-[#efeeea] flex items-center justify-between bg-[#fbf9f5]">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-[#EBF2EA] text-[#315433] rounded-xl border border-[#DEEAD8]">
+                <div className="p-1.5 bg-[#daeaaa] text-[#161f00] rounded-xl">
                   <Pencil className="w-4 h-4 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-[#1E2B20]">Editar Produto</h3>
-                  <p className="text-[11px] text-[#6A786D]">Altere os dados cadastrais deste item</p>
+                  <h3 className="font-grotesk text-base font-bold text-[#132512]">Editar Produto</h3>
+                  <p className="font-manrope text-[11px] text-[#747870]">Altere os dados cadastrais deste item</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsEditProductOpen(false)}
-                className="p-1.5 text-[#6A786D] hover:text-[#1E2B20] rounded-xl hover:bg-[#EBF2EA] cursor-pointer"
+                className="p-1.5 text-[#747870] hover:text-[#132512] rounded-xl hover:bg-[#efeeea] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedProduct} className="p-4 sm:p-6 space-y-3.5 text-xs overflow-y-auto max-h-[80vh]">
+            <form onSubmit={handleSaveEditedProduct} className="p-5 space-y-3.5 text-xs font-manrope overflow-y-auto max-h-[80vh]">
               {/* Preview da Foto Atual */}
-              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#FAF8F3] border border-[#EBE7DF]">
+              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#f5f3ef] border border-[#e4e2de]">
                 <img
                   src={editingProduct.imageUrl}
                   alt={editingProduct.name}
-                  className="w-12 h-12 rounded-lg object-cover border border-[#EBE7DF] bg-stone-100"
+                  className="w-12 h-12 rounded-lg object-cover border border-[#e4e2de] bg-stone-100"
                   onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=200&q=80';
+                    e.target.src =
+                      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=200&q=80';
                   }}
                 />
                 <div className="flex-1 min-w-0">
-                  <span className="text-[10px] font-bold uppercase text-[#6A786D] block">Foto Atual</span>
-                  <span className="text-xs font-bold text-[#1E2B20] truncate block">{editingProduct.name}</span>
+                  <span className="font-grotesk text-[10px] font-bold uppercase text-[#747870] block">Foto Atual</span>
+                  <span className="font-grotesk text-xs font-bold text-[#132512] truncate block">{editingProduct.name}</span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Nome do Produto *
                 </label>
                 <input
@@ -1296,12 +1436,12 @@ export function AdminPage({
                   required
                   value={editingProduct.name}
                   onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-bold text-[#1E2B20]"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Grupo / Categoria *
                 </label>
                 <select
@@ -1314,7 +1454,7 @@ export function AdminPage({
                       categoryId: isCustom ? 'custom' : e.target.value,
                     });
                   }}
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-bold text-[#1E2B20]"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
                 >
                   {DEFAULT_CATEGORIES.map((cat) => (
                     <option key={cat.id} value={cat.id}>
@@ -1333,13 +1473,13 @@ export function AdminPage({
                       setEditingProduct({ ...editingProduct, customCategoryName: e.target.value })
                     }
                     placeholder="Digite o nome do novo grupo"
-                    className="w-full mt-2 p-2 rounded-xl border border-[#EBE7DF] bg-white focus:border-[#315433] outline-none text-xs font-bold"
+                    className="w-full mt-2 p-2 rounded-xl border border-[#e4e2de] bg-white focus:border-[#283b26] outline-none text-xs font-grotesk font-semibold"
                   />
                 )}
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Valor (R$) *
                 </label>
                 <input
@@ -1349,65 +1489,45 @@ export function AdminPage({
                   required
                   value={editingProduct.price}
                   onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-bold text-[#1E2B20]"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                  Status do Produto
-                </label>
-                <select
-                  value={editingProduct.isAvailable ? 'available' : 'unavailable'}
-                  onChange={(e) =>
-                    setEditingProduct({
-                      ...editingProduct,
-                      isAvailable: e.target.value === 'available',
-                    })
-                  }
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none font-bold text-[#1E2B20]"
-                >
-                  <option value="available">Ativo (Disponível no cardápio)</option>
-                  <option value="unavailable">Pausado (Esgotado)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Descrição dos Ingredientes / Porção
                 </label>
                 <textarea
                   rows={2}
                   value={editingProduct.description}
                   onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none resize-none text-[#1E2B20]"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none resize-none text-[#132512]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
                   Link / URL da Foto do Produto
                 </label>
                 <input
                   type="url"
                   value={editingProduct.imageUrl}
                   onChange={(e) => setEditingProduct({ ...editingProduct, imageUrl: e.target.value })}
-                  placeholder="https://exemplo.com/foto.jpg"
-                  className="w-full p-2.5 rounded-xl border border-[#EBE7DF] bg-[#FAF8F3] focus:bg-white focus:border-[#315433] outline-none text-[#1E2B20] font-mono text-xs"
+                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none text-[#132512] font-mono text-xs"
                 />
               </div>
 
-              <div className="pt-3 border-t border-[#EBE7DF] flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-[#efeeea] flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsEditProductOpen(false)}
-                  className="px-3.5 py-2 rounded-xl border border-[#EBE7DF] text-[#6A786D] hover:text-[#1E2B20] font-semibold text-xs cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl border border-[#e4e2de] text-[#747870] hover:text-[#132512] font-grotesk text-xs uppercase tracking-wider font-semibold cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#315433] hover:bg-[#233F25] text-white font-semibold py-2 px-4 rounded-xl text-xs shadow-xs transition-colors cursor-pointer"
+                  className="bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs uppercase tracking-wider font-semibold py-2 px-4 rounded-xl shadow-xs transition cursor-pointer"
                 >
                   Salvar Alterações
                 </button>
@@ -1417,160 +1537,141 @@ export function AdminPage({
         </div>
       )}
 
-      {/* Modal de Filtro de Data para Relatório PDF */}
+      {/* ══════════════════════════════════════════════════════════
+          MODAL: RELATÓRIO PDF COM FILTRO DE DATA
+      ══════════════════════════════════════════════════════════ */}
       {isPdfModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full border border-[#EBE7DF] shadow-2xl p-4 sm:p-6 space-y-4 animate-in fade-in">
-            {/* Cabeçalho */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#EBE7DF]">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0" onClick={() => setIsPdfModalOpen(false)} />
+
+          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-[#e4e2de] shadow-2xl overflow-hidden z-10 flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-[#efeeea] flex items-center justify-between bg-[#fbf9f5]">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-[#EBF2EA] text-[#315433] flex items-center justify-center border border-[#DEEAD8]">
-                  <Calendar className="w-4 h-4 text-[#315433]" />
+                <div className="p-1.5 bg-[#daeaaa] text-[#161f00] rounded-xl">
+                  <FileText className="w-4 h-4 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-[#1E2B20]">Relatório de Pedidos em PDF</h3>
-                  <p className="text-[11px] text-[#6A786D]">Selecione o filtro de data desejado</p>
+                  <h3 className="font-grotesk text-base font-bold text-[#132512]">Relatório de Pedidos em PDF</h3>
+                  <p className="font-manrope text-[11px] text-[#747870]">Selecione o período para impressão ou exportação</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsPdfModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-[#FAF8F3] text-[#6A786D] hover:text-[#1E2B20] cursor-pointer"
-                title="Fechar"
+                className="p-1.5 text-[#747870] hover:text-[#132512] rounded-xl hover:bg-[#efeeea] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Presets Rápidos */}
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1E2B20]">
-                Período do Relatório
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                {[
-                  { id: 'today', label: 'Hoje' },
-                  { id: 'yesterday', label: 'Ontem' },
-                  { id: '7days', label: 'Últimos 7 dias' },
-                  { id: 'thisMonth', label: 'Este Mês' },
-                  { id: 'custom', label: 'Personalizado' },
-                  { id: 'all', label: 'Todo o Histórico' },
-                ].map((preset) => {
-                  const isActive = pdfDatePreset === preset.id;
-                  return (
+            <div className="p-5 space-y-4 text-xs font-manrope">
+              <div>
+                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-2">
+                  Período do Relatório
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'today', label: 'Hoje' },
+                    { id: 'yesterday', label: 'Ontem' },
+                    { id: '7days', label: 'Últimos 7 dias' },
+                    { id: 'thisMonth', label: 'Este Mês' },
+                    { id: 'all', label: 'Todo Histórico' },
+                    { id: 'custom', label: 'Personalizado' },
+                  ].map((preset) => (
                     <button
                       key={preset.id}
                       type="button"
                       onClick={() => setPdfDatePreset(preset.id)}
-                      className={`py-2 px-2.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
-                        isActive
-                          ? 'bg-[#315433] text-white border-[#315433] shadow-xs'
-                          : 'bg-white text-[#6A786D] border-[#EBE7DF] hover:bg-[#FAF8F3]'
+                      className={`p-2 rounded-xl font-grotesk font-semibold text-xs border transition cursor-pointer text-center ${
+                        pdfDatePreset === preset.id
+                          ? 'bg-[#283b26] text-white border-[#283b26] shadow-xs'
+                          : 'bg-[#f5f3ef] text-[#434841] border-[#e4e2de] hover:border-[#283b26]'
                       }`}
                     >
                       {preset.label}
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Intervalo Personalizado */}
-            {pdfDatePreset === 'custom' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-[#FAF8F3] rounded-xl border border-[#EBE7DF] animate-in fade-in">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                    Data Inicial
-                  </label>
-                  <input
-                    type="date"
-                    value={pdfStartDate}
-                    onChange={(e) => setPdfStartDate(e.target.value)}
-                    className="w-full p-2 rounded-xl border border-[#EBE7DF] bg-white text-[#1E2B20] font-semibold text-xs outline-none focus:border-[#315433]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#1E2B20] mb-1">
-                    Data Final
-                  </label>
-                  <input
-                    type="date"
-                    value={pdfEndDate}
-                    onChange={(e) => setPdfEndDate(e.target.value)}
-                    className="w-full p-2 rounded-xl border border-[#EBE7DF] bg-white text-[#1E2B20] font-semibold text-xs outline-none focus:border-[#315433]"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Resumo do Período */}
-            <div className="p-3 bg-[#FAF8F3] rounded-xl border border-[#EBE7DF] space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-[#6A786D]">
-                <span>Período Selecionado:</span>
-                <span className="text-[#1E2B20] font-bold text-right truncate max-w-[220px]">
-                  {pdfPeriodLabel}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#EBE7DF]">
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-[#6A786D]">Pedidos</div>
-                  <div className="text-sm font-bold text-[#315433]">{pdfFilteredOrders.length}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-[#6A786D]">Faturamento</div>
-                  <div className="text-sm font-bold text-[#1E2B20]">{formatCurrency(pdfTotalRevenue)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-[#6A786D]">Ticket Médio</div>
-                  <div className="text-sm font-bold text-[#1E2B20]">{formatCurrency(pdfAverageTicket)}</div>
+                  ))}
                 </div>
               </div>
 
-              {pdfFilteredOrders.length === 0 && (
-                <div className="pt-1.5 text-[11px] text-amber-800 font-medium border-t border-[#EBE7DF]">
-                  Nenhum pedido com status "Finalizado" foi encontrado neste intervalo.
+              {pdfDatePreset === 'custom' && (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-[#f5f3ef] rounded-xl border border-[#e4e2de]">
+                  <div>
+                    <label className="block font-grotesk text-[10px] font-bold uppercase text-[#132512] mb-1">
+                      Data Inicial
+                    </label>
+                    <input
+                      type="date"
+                      value={pdfStartDate}
+                      onChange={(e) => setPdfStartDate(e.target.value)}
+                      className="w-full p-2 rounded-lg border border-[#e4e2de] bg-white text-xs font-grotesk text-[#132512]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-grotesk text-[10px] font-bold uppercase text-[#132512] mb-1">
+                      Data Final
+                    </label>
+                    <input
+                      type="date"
+                      value={pdfEndDate}
+                      onChange={(e) => setPdfEndDate(e.target.value)}
+                      className="w-full p-2 rounded-lg border border-[#e4e2de] bg-white text-xs font-grotesk text-[#132512]"
+                    />
+                  </div>
                 </div>
               )}
-            </div>
 
-            {/* Ações do Rodapé */}
-            <div className="pt-2 border-t border-[#EBE7DF] flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsPdfModalOpen(false)}
-                className="px-3.5 py-2 rounded-xl border border-[#EBE7DF] text-[#6A786D] hover:text-[#1E2B20] font-semibold text-xs cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (pdfFilteredOrders.length === 0) {
-                    alert('Não há pedidos finalizados no período selecionado.');
-                    return;
-                  }
-                  generateCompletedOrdersPdf({
-                    completedOrders: pdfFilteredOrders,
-                    storeInfo,
-                    periodLabel: pdfPeriodLabel,
-                  });
-                  setIsPdfModalOpen(false);
-                }}
-                disabled={pdfFilteredOrders.length === 0}
-                className={`font-semibold py-2 px-4 rounded-xl text-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  pdfFilteredOrders.length === 0
-                    ? 'bg-[#315433]/40 text-white cursor-not-allowed'
-                    : 'bg-[#315433] hover:bg-[#233F25] text-white active:scale-95'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                <span>Gerar Relatório PDF</span>
-              </button>
+              {/* Resumo do Período */}
+              <div className="p-3.5 rounded-xl bg-[#fbf9f5] border border-[#e4e2de] space-y-2">
+                <span className="font-grotesk text-[10px] font-bold uppercase tracking-wider text-[#747870] block">
+                  Resumo do Período Selecionado
+                </span>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#434841] font-manrope">Período:</span>
+                  <span className="font-grotesk font-bold text-[#132512]">{pdfPeriodLabel}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#434841] font-manrope">Pedidos Concluídos:</span>
+                  <span className="font-grotesk font-bold text-[#132512]">{pdfFilteredOrders.length}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#434841] font-manrope">Faturamento:</span>
+                  <span className="font-grotesk font-bold text-[#566431]">{formatCurrency(pdfTotalRevenue)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#434841] font-manrope">Ticket Médio:</span>
+                  <span className="font-grotesk font-bold text-[#132512]">{formatCurrency(pdfAverageTicket)}</span>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-[#efeeea] flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPdfModalOpen(false)}
+                  className="px-3.5 py-2 rounded-xl border border-[#e4e2de] text-[#747870] hover:text-[#132512] font-grotesk text-xs uppercase tracking-wider font-semibold cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    generateCompletedOrdersPdf({
+                      completedOrders: pdfFilteredOrders,
+                      storeInfo,
+                      periodLabel: pdfPeriodLabel,
+                    });
+                  }}
+                  disabled={pdfFilteredOrders.length === 0}
+                  className="bg-[#283b26] hover:bg-[#132512] disabled:opacity-40 text-white font-grotesk text-xs uppercase tracking-wider font-semibold py-2 px-4 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Imprimir / Gerar PDF</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

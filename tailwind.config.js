@@ -32,6 +32,8 @@ export default {
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'sans-serif'],
         script: ['"Caveat"', 'cursive'],
+        grotesk: ['"Space Grotesk"', 'sans-serif'],
+        manrope: ['"Manrope"', 'sans-serif'],
       },
     },
   },
