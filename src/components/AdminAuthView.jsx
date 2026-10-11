@@ -44,7 +44,7 @@ export function formatPhoneInput(value) {
     .replace(/(\d{5})(\d)/, '$1-$2');
 }
 
-export function AdminAuthView({ onLoginSuccess, onBackToMenu, onSyncStoreInfo, onResetToOfficialMenu }) {
+export function AdminAuthView({ onLoginSuccess, onBackToMenu, onSyncStoreInfo }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   
   // Login State
@@ -134,11 +134,6 @@ export function AdminAuthView({ onLoginSuccess, onBackToMenu, onSyncStoreInfo, o
         });
       }
 
-      // Se for o CNPJ da Beach House (60.456.569/0001-98), apaga produtos legados e restaura o cardápio oficial completo
-      if (cnpjDigits === '60456569000198' && onResetToOfficialMenu) {
-        onResetToOfficialMenu();
-      }
-
       onLoginSuccess(session);
     } catch (err) {
       // Fallback offline caso o dispositivo esteja sem conexão mas com as credenciais padrão
@@ -157,11 +152,6 @@ export function AdminAuthView({ onLoginSuccess, onBackToMenu, onSyncStoreInfo, o
           isOffline: true,
         };
         localStorage.setItem('beach_house_admin_session', JSON.stringify(localSession));
-        
-        if (onResetToOfficialMenu) {
-          onResetToOfficialMenu();
-        }
-
         onLoginSuccess(localSession);
       } else {
         setLoginError('Erro de conexão com o servidor do Beach Tennis. Verifique sua internet.');

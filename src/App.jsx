@@ -112,7 +112,12 @@ export default function App() {
     try {
       localStorage.removeItem('beach_house_products_catalog_v1');
       const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : PRODUCTS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Filtra qualquer destilado remanescente da versão anterior apagado pelo usuário
+        return parsed.filter((p) => p.categoryId !== 'destilados' && !p.id?.startsWith('dest-'));
+      }
+      return PRODUCTS;
     } catch {
       return PRODUCTS;
     }
@@ -148,18 +153,6 @@ export default function App() {
     // Remove produtos pertencentes à categoria excluída
     const remainingProducts = allProducts.filter((p) => p.categoryId !== categoryId);
     updateProducts(remainingProducts);
-  };
-
-  const resetProductsToOfficialMenu = () => {
-    setAllProducts(PRODUCTS);
-    setDeletedCategoryIds([]);
-    try {
-      localStorage.removeItem('beach_house_products_catalog_v1');
-      localStorage.removeItem(DELETED_CATEGORIES_KEY);
-      localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(PRODUCTS));
-    } catch (e) {
-      console.error(e);
-    }
   };
 
   // Pedidos da Loja (Persistidos e Sincronizados)
@@ -218,34 +211,48 @@ export default function App() {
   // Busca e Filtros
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Agrupamento Dinâmico de Categorias para suportar grupos personalizados (filtrando categorias excluídas)
+  // Agrupamento Dinâmico de Categorias (categorias sem produtos somem automaticamente do cardápio)
   const dynamicCategories = useMemo(() => {
     const categoryMap = new Map();
+
+    const baseMap = new Map();
     CATEGORIES.forEach((cat) => {
       if (!deletedCategoryIds.includes(cat.id)) {
-        categoryMap.set(cat.id, cat);
+        baseMap.set(cat.id, cat);
       }
     });
 
     allProducts.forEach((prod) => {
-      if (
-        prod.categoryId &&
-        !deletedCategoryIds.includes(prod.categoryId) &&
-        !categoryMap.has(prod.categoryId)
-      ) {
-        categoryMap.set(prod.categoryId, {
-          id: prod.categoryId,
-          name: prod.categoryName || prod.categoryId.charAt(0).toUpperCase() + prod.categoryId.slice(1),
-          iconName: 'Utensils',
-          order: 99,
-        });
+      if (prod.categoryId && !deletedCategoryIds.includes(prod.categoryId)) {
+        if (baseMap.has(prod.categoryId)) {
+          categoryMap.set(prod.categoryId, baseMap.get(prod.categoryId));
+        } else if (!categoryMap.has(prod.categoryId)) {
+          categoryMap.set(prod.categoryId, {
+            id: prod.categoryId,
+            name: prod.categoryName || (prod.categoryId.charAt(0).toUpperCase() + prod.categoryId.slice(1)),
+            iconName: 'Utensils',
+            order: 99,
+          });
+        }
       }
     });
 
-    return Array.from(categoryMap.values());
+    // Quando uma categoria não tiver produto ela automaticamente some do cardápio!
+    const categoriesWithProducts = Array.from(categoryMap.values()).filter((cat) => {
+      return allProducts.some((p) => p.categoryId === cat.id);
+    });
+
+    return categoriesWithProducts;
   }, [allProducts, deletedCategoryIds]);
 
   const [activeCategory, setActiveCategory] = useState(() => dynamicCategories[0]?.id || 'porcoes');
+
+  // Se a categoria ativa atual não tiver mais produtos ou sumir, seleciona a primeira disponível
+  useEffect(() => {
+    if (dynamicCategories.length > 0 && !dynamicCategories.some((c) => c.id === activeCategory)) {
+      setActiveCategory(dynamicCategories[0].id);
+    }
+  }, [dynamicCategories, activeCategory]);
 
   // Refs e efeito para centralizar a categoria selecionada no scroll lateral
   const categoryTabRefs = React.useRef({});
@@ -322,7 +329,6 @@ export default function App() {
             setAdminSession(session);
           }}
           onBackToMenu={navigateToMenu}
-          onResetToOfficialMenu={resetProductsToOfficialMenu}
           onSyncStoreInfo={(info) => {
             if (updateStoreInfo) {
               updateStoreInfo({
@@ -344,7 +350,6 @@ export default function App() {
         products={allProducts}
         categories={dynamicCategories}
         onUpdateProducts={updateProducts}
-        onResetToOfficialMenu={resetProductsToOfficialMenu}
         onDeleteCategory={handleDeleteCategory}
         orders={orders}
         onUpdateOrders={updateOrders}

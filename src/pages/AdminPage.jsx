@@ -6,7 +6,6 @@ import {
   MapPin,
   Clock,
   Save,
-  RotateCcw,
   ArrowLeft,
   CheckCircle,
   Plus,
@@ -45,7 +44,6 @@ import { generateCompletedOrdersPdf } from '../utils/pdfReport';
 import { formatCNPJ } from '../components/AdminAuthView';
 import {
   CATEGORIES as DEFAULT_CATEGORIES,
-  PRODUCTS as OFFICIAL_PRODUCTS,
 } from '../data/storeData';
 
 const compressImageFile = (file, maxWidth = 900, maxHeight = 900, quality = 0.8) => {
@@ -177,7 +175,6 @@ export function AdminPage({
   products,
   categories,
   onUpdateProducts,
-  onResetToOfficialMenu,
   onDeleteCategory,
   orders = [],
   onUpdateOrders,
@@ -228,11 +225,63 @@ export function AdminPage({
     description: '',
     imageUrl: '',
     isAvailable: true,
+    hasOptions: false,
+    options: [
+      { name: '1 Dose', price: '' },
+      { name: '2 Doses', price: '' },
+      { name: 'Garrafa', price: '' },
+    ],
   });
+
+  // Funções de manipulação de opções/doses para Novo Produto
+  const handleAddOptionNewProduct = () => {
+    setNewProduct((prev) => ({
+      ...prev,
+      options: [...(prev.options || []), { name: '', price: '' }],
+    }));
+  };
+
+  const handleUpdateOptionNewProduct = (index, field, value) => {
+    setNewProduct((prev) => {
+      const updated = [...(prev.options || [])];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, options: updated };
+    });
+  };
+
+  const handleRemoveOptionNewProduct = (index) => {
+    setNewProduct((prev) => {
+      const updated = prev.options.filter((_, i) => i !== index);
+      return { ...prev, options: updated };
+    });
+  };
 
   // Modal para Editar Produto Existente
   const [isEditProductOpen, setIsEditProductOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+
+  // Funções de manipulação de opções/doses para Editar Produto
+  const handleAddOptionEditProduct = () => {
+    setEditingProduct((prev) => ({
+      ...prev,
+      options: [...(prev.options || []), { name: '', price: '' }],
+    }));
+  };
+
+  const handleUpdateOptionEditProduct = (index, field, value) => {
+    setEditingProduct((prev) => {
+      const updated = [...(prev.options || [])];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, options: updated };
+    });
+  };
+
+  const handleRemoveOptionEditProduct = (index) => {
+    setEditingProduct((prev) => {
+      const updated = prev.options.filter((_, i) => i !== index);
+      return { ...prev, options: updated };
+    });
+  };
   const [isPhotoLoading, setIsPhotoLoading] = useState(false);
 
   // Upload e Processamento de Foto do Aparelho
@@ -351,10 +400,26 @@ export function AdminPage({
   // Abrir Modal de Edição
   const handleOpenEditModal = (product) => {
     const isCustomCat = !DEFAULT_CATEGORIES.some((c) => c.id === product.categoryId);
+    const hasOpts = Array.isArray(product.options) && product.options.length > 0;
+    const isDest = product.categoryId === 'destilados';
+
+    const initialOptions = hasOpts
+      ? product.options.map((o) => ({ name: o.name, price: String(o.price) }))
+      : isDest
+      ? [
+          { name: '1 Dose', price: String(product.price || '') },
+          { name: '2 Doses', price: '' },
+          { name: 'Garrafa', price: '' },
+        ]
+      : [];
+
     setEditingProduct({
       ...product,
       isCustomCategory: isCustomCat,
       customCategoryName: isCustomCat ? (product.categoryName || product.categoryId) : '',
+      hasOptions: hasOpts || isDest,
+      options: initialOptions,
+      price: String(product.price),
     });
     setIsEditProductOpen(true);
   };
@@ -368,15 +433,35 @@ export function AdminPage({
       alert('Informe o nome do produto.');
       return;
     }
-    const parsedPrice = parseFloat(String(editingProduct.price).replace(',', '.'));
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      alert('Informe um valor válido maior que zero.');
-      return;
-    }
 
     const categoryId = editingProduct.isCustomCategory
       ? editingProduct.customCategoryName.trim().toLowerCase().replace(/\s+/g, '-') || 'outros'
       : editingProduct.categoryId;
+
+    const isDestilados = categoryId === 'destilados' || editingProduct.hasOptions;
+    let parsedOptions = undefined;
+    let finalPrice = parseFloat(String(editingProduct.price).replace(',', '.'));
+
+    if (isDestilados && Array.isArray(editingProduct.options)) {
+      const validOptions = editingProduct.options
+        .map((opt) => ({
+          name: opt.name.trim(),
+          price: parseFloat(String(opt.price).replace(',', '.')),
+        }))
+        .filter((opt) => opt.name && !isNaN(opt.price) && opt.price > 0);
+
+      if (validOptions.length > 0) {
+        parsedOptions = validOptions;
+        if (isNaN(finalPrice) || finalPrice <= 0) {
+          finalPrice = validOptions[0].price;
+        }
+      }
+    }
+
+    if (isNaN(finalPrice) || finalPrice <= 0) {
+      alert('Informe um valor válido maior que zero (ou preencha os valores das doses/garrafa).');
+      return;
+    }
 
     const updated = products.map((p) => {
       if (p.id === editingProduct.id) {
@@ -385,10 +470,11 @@ export function AdminPage({
           name: editingProduct.name.trim(),
           categoryId,
           categoryName: editingProduct.isCustomCategory ? editingProduct.customCategoryName.trim() : undefined,
-          price: parsedPrice,
+          price: finalPrice,
           description: editingProduct.description.trim(),
           imageUrl: editingProduct.imageUrl.trim() || p.imageUrl,
           isAvailable: editingProduct.isAvailable,
+          options: parsedOptions,
         };
       }
       return p;
@@ -407,15 +493,35 @@ export function AdminPage({
       alert('Informe o nome do produto.');
       return;
     }
-    const parsedPrice = parseFloat(String(newProduct.price).replace(',', '.'));
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      alert('Informe um valor válido maior que zero.');
-      return;
-    }
 
     const categoryId = newProduct.categoryId === 'custom' 
       ? newProduct.customCategoryName.trim().toLowerCase().replace(/\s+/g, '-') || 'outros'
       : newProduct.categoryId;
+
+    const isDestilados = categoryId === 'destilados' || newProduct.hasOptions;
+    let parsedOptions = undefined;
+    let finalPrice = parseFloat(String(newProduct.price).replace(',', '.'));
+
+    if (isDestilados && Array.isArray(newProduct.options)) {
+      const validOptions = newProduct.options
+        .map((opt) => ({
+          name: opt.name.trim(),
+          price: parseFloat(String(opt.price).replace(',', '.')),
+        }))
+        .filter((opt) => opt.name && !isNaN(opt.price) && opt.price > 0);
+
+      if (validOptions.length > 0) {
+        parsedOptions = validOptions;
+        if (isNaN(finalPrice) || finalPrice <= 0) {
+          finalPrice = validOptions[0].price;
+        }
+      }
+    }
+
+    if (isNaN(finalPrice) || finalPrice <= 0) {
+      alert('Informe um valor válido maior que zero (ou preencha os valores das doses/garrafa).');
+      return;
+    }
 
     const fallbackImages = {
       porcoes: 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80',
@@ -439,9 +545,10 @@ export function AdminPage({
       categoryName: newProduct.categoryId === 'custom' ? newProduct.customCategoryName.trim() : undefined,
       name: newProduct.name.trim(),
       description: newProduct.description.trim() || 'Sem descrição informada.',
-      price: parsedPrice,
+      price: finalPrice,
       imageUrl: finalImage,
       isAvailable: true,
+      options: parsedOptions,
     };
 
     const updated = [created, ...products];
@@ -455,19 +562,14 @@ export function AdminPage({
       description: '',
       imageUrl: '',
       isAvailable: true,
+      hasOptions: false,
+      options: [
+        { name: '1 Dose', price: '' },
+        { name: '2 Doses', price: '' },
+        { name: 'Garrafa', price: '' },
+      ],
     });
     showProductFeedback(`Produto "${created.name}" adicionado com sucesso.`);
-  };
-
-  const handleRestoreOfficialMenu = () => {
-    if (window.confirm('Deseja recarregar o Cardápio Oficial completo do Beach House com os 81 produtos cadastrados das 4 páginas do PDF?')) {
-      if (onResetToOfficialMenu) {
-        onResetToOfficialMenu();
-      } else {
-        onUpdateProducts(OFFICIAL_PRODUCTS);
-      }
-      showProductFeedback('Cardápio oficial com 81 itens restaurado com sucesso.');
-    }
   };
 
   const getCategoryLabel = (catId, customName) => {
@@ -476,19 +578,41 @@ export function AdminPage({
     return found ? found.name : catId;
   };
 
-  // Categorias disponíveis para o filtro de produtos (excluindo as que foram deletadas)
+  // Categorias disponíveis para o filtro de produtos (categorias sem produtos somem automaticamente!)
   const availableCategoriesForFilter = useMemo(() => {
-    const list = [...(categories || DEFAULT_CATEGORIES)];
+    const list = [];
+    const catMap = new Map();
+    DEFAULT_CATEGORIES.forEach((c) => catMap.set(c.id, c));
+    if (categories) {
+      categories.forEach((c) => catMap.set(c.id, c));
+    }
+
     products.forEach((p) => {
       if (p.categoryId && !list.some((c) => c.id === p.categoryId)) {
+        const found = catMap.get(p.categoryId);
         list.push({
           id: p.categoryId,
-          name: p.categoryName || (p.categoryId.charAt(0).toUpperCase() + p.categoryId.slice(1)),
+          name: p.categoryName || (found ? found.name : (p.categoryId.charAt(0).toUpperCase() + p.categoryId.slice(1))),
         });
       }
     });
-    return list;
+
+    return list.sort((a, b) => {
+      const orderA = catMap.get(a.id)?.order ?? 99;
+      const orderB = catMap.get(b.id)?.order ?? 99;
+      return orderA - orderB;
+    });
   }, [categories, products]);
+
+  // Se a categoria selecionada não tiver mais produtos, reseta o filtro para 'all'
+  useEffect(() => {
+    if (
+      productCategoryFilter !== 'all' &&
+      !availableCategoriesForFilter.some((c) => c.id === productCategoryFilter)
+    ) {
+      setProductCategoryFilter('all');
+    }
+  }, [availableCategoriesForFilter, productCategoryFilter]);
 
   // Excluir Categoria Completa
   const handleDeleteCategoryPrompt = (categoryId) => {
@@ -830,17 +954,6 @@ export function AdminPage({
                       <span className="hidden sm:inline">Excluir Categoria</span>
                     </button>
                   )}
-
-                  {/* Botão Restaurar 81 Itens Oficiais */}
-                  <button
-                    type="button"
-                    onClick={handleRestoreOfficialMenu}
-                    className="inline-flex items-center gap-1.5 bg-white hover:bg-[#f5f3ef] text-[#132512] border border-[#c4c8bf] text-xs font-grotesk uppercase tracking-wider font-semibold px-3 py-2 rounded-xl transition cursor-pointer shadow-2xs"
-                    title="Restaurar Cardápio Oficial com os 81 produtos cadastrados do PDF"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Restaurar 81</span>
-                  </button>
 
                   {/* Botão Novo Item */}
                   <button
@@ -1546,10 +1659,25 @@ export function AdminPage({
                   </label>
                   <select
                     value={newProduct.categoryId}
-                    onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const isDest = val === 'destilados';
+                      setNewProduct({
+                        ...newProduct,
+                        categoryId: val,
+                        hasOptions: isDest ? true : newProduct.hasOptions,
+                        options: isDest && (!newProduct.options || newProduct.options.length === 0)
+                          ? [
+                              { name: '1 Dose', price: '' },
+                              { name: '2 Doses', price: '' },
+                              { name: 'Garrafa', price: '' },
+                            ]
+                          : newProduct.options,
+                      });
+                    }}
                     className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
                   >
-                    {availableCategoriesForFilter.map((cat) => (
+                    {DEFAULT_CATEGORIES.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
                       </option>
@@ -1569,22 +1697,89 @@ export function AdminPage({
                   )}
                 </div>
 
-                {/* Valor (R$) */}
-                <div>
-                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
-                    Valor (R$) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    required
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                    placeholder="Ex.: 35.00"
-                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
-                  />
-                </div>
+                {/* Opções de Doses & Garrafa (Destilados & Doses) */}
+                {(newProduct.categoryId === 'destilados' || newProduct.hasOptions) ? (
+                  <div className="md:col-span-2 p-4 sm:p-5 rounded-2xl bg-[#f5f3ef] border border-[#e4e2de] space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512]">
+                          Doses & Garrafa (Valores do Item)
+                        </h4>
+                        <p className="font-manrope text-[11px] text-[#747870]">
+                          Defina a quantidade de doses e o valor de cada uma e o valor da garrafa.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddOptionNewProduct}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white text-xs font-grotesk font-bold transition cursor-pointer self-start sm:self-auto"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Adicionar Opção/Dose</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2.5 pt-1">
+                      {newProduct.options?.map((opt, idx) => (
+                        <div key={idx} className="flex items-center gap-2.5 bg-white p-2.5 rounded-xl border border-[#dedad2]">
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-grotesk font-bold uppercase text-[#747870] mb-0.5">
+                              Dose / Tamanho
+                            </label>
+                            <input
+                              type="text"
+                              value={opt.name}
+                              onChange={(e) => handleUpdateOptionNewProduct(idx, 'name', e.target.value)}
+                              placeholder="Ex: 1 Dose, 2 Doses, Garrafa"
+                              className="w-full p-2 text-xs font-grotesk font-semibold bg-[#fbf9f5] rounded-lg border border-[#e4e2de] focus:bg-white outline-none"
+                              required
+                            />
+                          </div>
+                          <div className="w-28 sm:w-36">
+                            <label className="block text-[10px] font-grotesk font-bold uppercase text-[#747870] mb-0.5">
+                              Valor (R$)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              value={opt.price}
+                              onChange={(e) => handleUpdateOptionNewProduct(idx, 'price', e.target.value)}
+                              placeholder="0.00"
+                              className="w-full p-2 text-xs font-grotesk font-bold text-[#132512] bg-[#fbf9f5] rounded-lg border border-[#e4e2de] focus:bg-white outline-none"
+                              required
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveOptionNewProduct(idx)}
+                            className="p-2 text-[#747870] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/40 rounded-lg transition cursor-pointer mt-3"
+                            title="Remover opção"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* Valor Único (R$) para Itens Convencionais */
+                  <div>
+                    <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                      Valor (R$) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      required
+                      value={newProduct.price}
+                      onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                      placeholder="Ex.: 35.00"
+                      className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
+                    />
+                  </div>
+                )}
 
                 {/* Descrição dos Ingredientes / Porção */}
                 <div className="md:col-span-2">
@@ -1763,15 +1958,24 @@ export function AdminPage({
                     value={editingProduct.isCustomCategory ? 'custom' : editingProduct.categoryId}
                     onChange={(e) => {
                       const isCustom = e.target.value === 'custom';
+                      const isDest = e.target.value === 'destilados';
                       setEditingProduct({
                         ...editingProduct,
                         isCustomCategory: isCustom,
                         categoryId: isCustom ? 'custom' : e.target.value,
+                        hasOptions: isDest ? true : editingProduct.hasOptions,
+                        options: isDest && (!editingProduct.options || editingProduct.options.length === 0)
+                          ? [
+                              { name: '1 Dose', price: String(editingProduct.price || '') },
+                              { name: '2 Doses', price: '' },
+                              { name: 'Garrafa', price: '' },
+                            ]
+                          : editingProduct.options,
                       });
                     }}
                     className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
                   >
-                    {availableCategoriesForFilter.map((cat) => (
+                    {DEFAULT_CATEGORIES.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
                       </option>
@@ -1793,21 +1997,88 @@ export function AdminPage({
                   )}
                 </div>
 
-                {/* Valor (R$) */}
-                <div>
-                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
-                    Valor (R$) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    required
-                    value={editingProduct.price}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
-                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
-                  />
-                </div>
+                {/* Opções de Doses & Garrafa (Destilados & Doses) */}
+                {(editingProduct.categoryId === 'destilados' || editingProduct.hasOptions) ? (
+                  <div className="md:col-span-2 p-4 sm:p-5 rounded-2xl bg-[#f5f3ef] border border-[#e4e2de] space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512]">
+                          Doses & Garrafa (Valores do Item)
+                        </h4>
+                        <p className="font-manrope text-[11px] text-[#747870]">
+                          Defina a quantidade de doses e o valor de cada uma e o valor da garrafa.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddOptionEditProduct}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white text-xs font-grotesk font-bold transition cursor-pointer self-start sm:self-auto"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Adicionar Opção/Dose</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2.5 pt-1">
+                      {editingProduct.options?.map((opt, idx) => (
+                        <div key={idx} className="flex items-center gap-2.5 bg-white p-2.5 rounded-xl border border-[#dedad2]">
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-grotesk font-bold uppercase text-[#747870] mb-0.5">
+                              Dose / Tamanho
+                            </label>
+                            <input
+                              type="text"
+                              value={opt.name}
+                              onChange={(e) => handleUpdateOptionEditProduct(idx, 'name', e.target.value)}
+                              placeholder="Ex: 1 Dose, 2 Doses, Garrafa"
+                              className="w-full p-2 text-xs font-grotesk font-semibold bg-[#fbf9f5] rounded-lg border border-[#e4e2de] focus:bg-white outline-none"
+                              required
+                            />
+                          </div>
+                          <div className="w-28 sm:w-36">
+                            <label className="block text-[10px] font-grotesk font-bold uppercase text-[#747870] mb-0.5">
+                              Valor (R$)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              value={opt.price}
+                              onChange={(e) => handleUpdateOptionEditProduct(idx, 'price', e.target.value)}
+                              placeholder="0.00"
+                              className="w-full p-2 text-xs font-grotesk font-bold text-[#132512] bg-[#fbf9f5] rounded-lg border border-[#e4e2de] focus:bg-white outline-none"
+                              required
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveOptionEditProduct(idx)}
+                            className="p-2 text-[#747870] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/40 rounded-lg transition cursor-pointer mt-3"
+                            title="Remover opção"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* Valor Único (R$) para Itens Convencionais */
+                  <div>
+                    <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                      Valor (R$) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      required
+                      value={editingProduct.price}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
+                      className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
+                    />
+                  </div>
+                )}
 
                 {/* Disponibilidade */}
                 <div className="md:col-span-2">
