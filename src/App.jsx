@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Search, X } from 'lucide-react';
 import { INITIAL_STORE_CONFIG, CATEGORIES, PRODUCTS } from './data/storeData';
 import { useCart } from './hooks/useCart';
 import { Header } from './components/Header';
-import { CategoryNav } from './components/CategoryNav';
-import { SearchBar } from './components/SearchBar';
 import { ProductCard } from './components/ProductCard';
 import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
@@ -12,7 +11,6 @@ import { OrderSuccessModal } from './components/OrderSuccessModal';
 import { FloatingCartButton } from './components/FloatingCartButton';
 import { AdminPage } from './pages/AdminPage';
 import { AdminAuthView } from './components/AdminAuthView';
-import { BeachHouseLogo } from './components/BeachHouseLogo';
 
 const STORE_CONFIG_STORAGE_KEY = 'beach_house_store_config_v1';
 const PRODUCTS_STORAGE_KEY = 'beach_house_products_catalog_v2';
@@ -302,58 +300,103 @@ export default function App() {
     );
   }
 
-  // Página do Cardápio do Cliente
+  // Página do Cardápio do Cliente (Layout Editorial com adaptação para Mobile)
   return (
-    <div className="min-h-screen bg-[#F5F2EB] text-[#2C3E18] pb-28 sm:pb-20 flex flex-col font-sans selection:bg-[#4A692D] selection:text-white">
-      {/* Header do Cardápio */}
+    <div className="min-h-screen bg-[#fbf9f5] font-manrope text-[#1b1c1a] pb-28 sm:pb-24 flex flex-col antialiased selection:bg-[#daeaaa] selection:text-[#161f00]">
+      {/* Header Editorial do Cardápio */}
       <Header storeInfo={storeInfo} />
 
-      {/* Barra de Navegação por Categorias Fixa */}
-      {!searchQuery && (
-        <CategoryNav
-          categories={dynamicCategories}
-          activeCategory={activeCategory}
-          onSelectCategory={handleSelectCategory}
-        />
-      )}
+      {/* Barra de Filtros e Busca de Categorias integrada */}
+      <div className="sticky top-0 z-30 bg-[#fbf9f5]/95 backdrop-blur-md border-b border-[#dedad2] shadow-xs">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Categorias com scroll horizontal suave adaptado para mobile */}
+          <nav
+            aria-label="Categorias do Cardápio"
+            className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden -mx-2 px-2 sm:mx-0 sm:px-0"
+          >
+            {dynamicCategories.map((cat) => {
+              const isActive = activeCategory === cat.id && !searchQuery;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => handleSelectCategory(cat.id)}
+                  className="group relative px-3 sm:px-4 py-2 text-left whitespace-nowrap transition-all duration-200 flex-shrink-0 cursor-pointer"
+                  type="button"
+                >
+                  <span
+                    className={`font-grotesk text-xs sm:text-sm uppercase tracking-wider ${
+                      isActive
+                        ? 'text-[#132512] font-bold'
+                        : 'text-[#747870] hover:text-[#132512] font-semibold'
+                    }`}
+                  >
+                    {cat.name}
+                  </span>
+                  {isActive && (
+                    <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#132512] rounded-full" />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Campo de Busca Rápida */}
+          <div className="relative w-full lg:w-72 flex-shrink-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747870] w-4 h-4 pointer-events-none" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar sabor ou ingrediente..."
+              className="w-full bg-[#f5f3ef] border border-[#dedad2] pl-10 pr-9 py-2 text-xs sm:text-sm text-[#1b1c1a] placeholder:text-[#747870] font-manrope rounded-xl focus:outline-none focus:bg-white focus:border-[#283b26] transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747870] hover:text-[#132512] p-1 cursor-pointer"
+                title="Limpar busca"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Conteúdo Principal do Cardápio */}
-      <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 pt-6 flex-1">
-        
-        {/* Barra de Pesquisa */}
-        <SearchBar
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          totalResults={filteredProducts.length}
-          isFiltering={!!searchQuery.trim()}
-        />
-
-        {/* Listagem de Produtos */}
+      <main className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-32 flex-1">
         {searchQuery ? (
           // Modo Busca Ativa
-          <div className="space-y-4">
-            <h2 className="text-base font-black text-[#2C3E18] flex items-center gap-2">
-              <span>Resultado da Busca</span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#EAF0DF] text-[#3A5323] border border-[#4A692D]/20">
-                {filteredProducts.length}
+          <div className="space-y-6">
+            <div className="flex items-baseline justify-between mb-6 pb-3 border-b border-[#dedad2]">
+              <div>
+                <span className="font-grotesk text-[11px] sm:text-xs uppercase tracking-widest text-[#747870] block">
+                  Resultado da Busca
+                </span>
+                <h1 className="font-grotesk text-2xl sm:text-3xl text-[#132512] font-bold tracking-tight">
+                  "{searchQuery}"
+                </h1>
+              </div>
+              <span className="font-grotesk text-xs uppercase tracking-wider text-[#747870]">
+                {filteredProducts.length} itens encontrados
               </span>
-            </h2>
+            </div>
 
             {filteredProducts.length === 0 ? (
-              <div className="text-center py-12 bg-[#FCFAF6] rounded-3xl border-2 border-[#DDD7C4] p-8 shadow-sm">
-                <h3 className="font-black text-[#2C3E18] text-base">Nenhum produto encontrado</h3>
-                <p className="text-xs text-[#2C3E18]/60 mt-1 max-w-sm mx-auto">
+              <div className="text-center py-16 bg-white rounded-3xl border border-[#dedad2] p-8 shadow-xs">
+                <h3 className="font-grotesk font-bold text-[#132512] text-lg">Nenhum produto encontrado</h3>
+                <p className="font-manrope text-sm text-[#747870] mt-1.5 max-w-sm mx-auto">
                   Não encontramos nenhum item com o termo "{searchQuery}".
                 </p>
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="mt-4 text-xs font-black bg-[#4A692D] text-white px-5 py-2.5 rounded-xl shadow-md"
+                  className="mt-5 text-xs font-grotesk font-bold uppercase tracking-wider bg-[#283b26] hover:bg-[#132512] text-white px-6 py-3 rounded-xl shadow-xs transition cursor-pointer"
                 >
-                  Ver todos os itens
+                  Ver todos os itens do cardápio
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                 {filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -366,25 +409,30 @@ export default function App() {
           </div>
         ) : (
           // Modo Normal Agrupado por Categorias
-          <div className="space-y-8 sm:space-y-10">
+          <div className="space-y-12 sm:space-y-16">
             {productsByCategory.map((category) => (
               <section
                 key={category.id}
                 id={`category-${category.id}`}
-                className="scroll-mt-20"
+                className="scroll-mt-24"
               >
-                {/* Título da Categoria */}
-                <div className="flex items-center gap-2 mb-3.5 pb-2 border-b-2 border-[#DDD7C4]">
-                  <h2 className="text-base sm:text-lg font-black text-[#2C3E18] tracking-tight uppercase">
-                    {category.name}
-                  </h2>
-                  <span className="text-xs font-bold text-[#2C3E18]/50 ml-auto">
-                    {category.products.length} itens
+                {/* Título da Categoria Estilo Editorial */}
+                <div className="flex items-baseline justify-between mb-6 sm:mb-8 pb-3 border-b border-[#dedad2]">
+                  <div>
+                    <span className="font-grotesk text-[11px] sm:text-xs uppercase tracking-widest text-[#747870] block">
+                      Seleção para Mesa
+                    </span>
+                    <h2 className="font-grotesk text-2xl sm:text-3xl text-[#132512] font-bold tracking-tight">
+                      {category.name}
+                    </h2>
+                  </div>
+                  <span className="font-grotesk text-xs uppercase tracking-wider text-[#747870] hidden sm:block">
+                    {category.products.length} {category.products.length === 1 ? 'receita artesanal' : 'receitas artesanais'}
                   </span>
                 </div>
 
-                {/* Grade de Cards de Produtos */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+                {/* 2x2 Bento Editorial Grid adaptado para Mobile */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                   {category.products.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -399,13 +447,37 @@ export default function App() {
         )}
       </main>
 
-      {/* Rodapé Limpo do Cliente */}
-      <footer className="mt-16 border-t-2 border-[#DDD7C4] bg-[#FCFAF6] py-8 text-center text-xs text-[#2C3E18]/70">
-        <div className="max-w-4xl mx-auto px-4 flex flex-col items-center justify-center gap-2">
-          <BeachHouseLogo size="normal" />
-          <p className="text-[11px] text-[#2C3E18]/50 mt-2">
-            Cardápio Digital Oficial • Beach House Sports N' Bar
-          </p>
+      {/* Rodapé Editorial do Cardápio */}
+      <footer className="w-full bg-[#f5f3ef] border-t border-[#dedad2] mt-16 sm:mt-24">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          <div className="flex flex-col md:flex-row items-baseline justify-between gap-6 pb-8 border-b border-[#dedad2]">
+            <div className="space-y-2">
+              <p className="font-grotesk text-lg sm:text-xl font-bold tracking-tight text-[#132512]">
+                BEACH HOUSE SPORTS N' BAR
+              </p>
+              <p className="font-manrope text-xs sm:text-sm text-[#434841] max-w-md leading-relaxed">
+                Gastronomia costeira despretensiosa, coquetelaria autoral e a energia do esporte à beira da areia.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-6 font-grotesk text-xs uppercase tracking-wider text-[#434841]">
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="hover:text-[#132512] transition-colors"
+              >
+                Menu Digital
+              </a>
+              <span className="hover:text-[#132512] transition-colors cursor-pointer">Reservas</span>
+              <span className="hover:text-[#132512] transition-colors cursor-pointer">Quadras & Lounge</span>
+            </div>
+          </div>
+          <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 font-grotesk text-[11px] sm:text-xs text-[#747870] uppercase tracking-widest">
+            <span>© {new Date().getFullYear()} Beach House Sports N' Bar. Todos os direitos reservados.</span>
+            <span>Ambiente Calmo • Práticas Sustentáveis</span>
+          </div>
         </div>
       </footer>
 

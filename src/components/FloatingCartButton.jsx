@@ -1,47 +1,36 @@
 import React from 'react';
-import { ShoppingBag, ChevronRight } from 'lucide-react';
+import { ShoppingBag, ArrowRight } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
 
 export function FloatingCartButton({ totalCount, subtotal, onOpenCart }) {
   if (totalCount === 0) return null;
 
   return (
-    <div className="fixed bottom-4 inset-x-0 z-40 px-4 sm:px-6 pointer-events-none animate-in slide-in-from-bottom-5 duration-300">
-      <div className="max-w-md mx-auto pointer-events-auto">
-        <button
-          onClick={onOpenCart}
-          className="w-full bg-[#4A692D] hover:bg-[#3A5323] text-[#FCFAF6] rounded-2xl p-3.5 sm:p-4 shadow-2xl shadow-[#4A692D]/40 flex items-center justify-between transition-transform active:scale-[0.98] border-2 border-[#3A5323]"
-        >
-          {/* Badge e Contagem */}
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-[#FCFAF6] text-[#4A692D] flex items-center justify-center shadow-md">
-                <ShoppingBag className="w-5 h-5 stroke-[2.5]" />
-              </div>
-              <span className="absolute -top-1.5 -right-1.5 bg-[#2C3E18] text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#FCFAF6]">
-                {totalCount}
-              </span>
-            </div>
-
-            <div className="text-left">
-              <div className="text-xs font-black uppercase tracking-wider text-[#FCFAF6]">
-                Ver Carrinho
-              </div>
-              <div className="text-xs text-[#FCFAF6]/80 font-medium">
-                {totalCount} {totalCount === 1 ? 'item' : 'itens'} adicionados
-              </div>
-            </div>
+    <aside className="fixed bottom-4 sm:bottom-6 right-4 left-4 sm:left-auto sm:right-8 z-40 max-w-md w-[calc(100%-2rem)] sm:w-96 bg-[#132512] text-white rounded-2xl shadow-2xl p-3 sm:p-4 transition-all duration-300 mx-auto animate-in slide-in-from-bottom-5">
+      <div className="flex items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 pl-1 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-[#283b26] flex items-center justify-center text-[#daeaaa] shrink-0">
+            <ShoppingBag className="w-4 h-4" />
           </div>
-
-          {/* Subtotal e Seta */}
-          <div className="flex items-center gap-2">
-            <span className="text-base font-black text-[#FCFAF6]">
+          <div className="flex flex-col min-w-0 truncate">
+            <span className="font-grotesk text-[10px] sm:text-xs text-[#b6cdb0] uppercase tracking-wider font-semibold truncate">
+              {totalCount} {totalCount === 1 ? 'item adicionado' : 'itens adicionados'}
+            </span>
+            <span className="font-grotesk text-base sm:text-lg font-bold text-white tracking-tight">
               {formatCurrency(subtotal)}
             </span>
-            <ChevronRight className="w-5 h-5 text-[#FCFAF6]/80 stroke-[2.5]" />
           </div>
+        </div>
+
+        <button
+          onClick={onOpenCart}
+          type="button"
+          className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2.5 bg-[#fbf9f5] hover:bg-[#efeeea] text-[#132512] font-grotesk text-xs uppercase tracking-wider font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-xs active:scale-95"
+        >
+          <span>Ver Pedido</span>
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

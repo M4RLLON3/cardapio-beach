@@ -4,43 +4,33 @@ import React from 'react';
  * Ícone estilizado do Coqueiro com Rede de Beach Tennis
  * Baseado com precisão no logotipo do Cartão Fidelidade
  */
-export function BeachHouseIcon({ className = "w-12 h-12", color = "#4A692D" }) {
+export function BeachHouseIcon({ className = "w-14 h-14", color = "#314a27" }) {
   return (
     <svg
-      viewBox="0 0 100 100"
+      viewBox="0 0 72 72"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
+      style={{ color }}
     >
-      {/* Folhas do Coqueiro */}
-      <g stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        {/* Folhas superiores */}
-        <path d="M50 42 C45 25 35 18 20 22 C30 28 42 34 50 42" fill={color} fillOpacity="0.85" />
-        <path d="M50 42 C55 25 65 18 80 22 C70 28 58 34 50 42" fill={color} fillOpacity="0.85" />
-        
-        {/* Folhas centrais */}
-        <path d="M50 40 C48 18 50 10 50 8 C52 18 52 28 50 40" fill={color} fillOpacity="0.9" />
-        <path d="M50 42 C35 32 24 32 14 38 C26 42 40 42 50 42" fill={color} fillOpacity="0.85" />
-        <path d="M50 42 C65 32 76 32 86 38 C74 42 60 42 50 42" fill={color} fillOpacity="0.85" />
-        
-        {/* Folhas caídas laterais */}
-        <path d="M50 44 C38 45 26 50 20 60 C32 54 44 48 50 44" fill={color} fillOpacity="0.85" />
-        <path d="M50 44 C62 45 74 50 80 60 C68 54 56 48 50 44" fill={color} fillOpacity="0.85" />
-
-        {/* Tronco */}
-        <path d="M47 44 L46 88 L54 88 L53 44 Z" fill={color} fillOpacity="0.9" />
-
-        {/* Rede de Beach Tennis sobreposta ao tronco */}
-        <rect x="24" y="52" width="52" height="24" rx="2" fill="#F5F2EB" stroke={color} strokeWidth="2.5" />
-        {/* Malha da rede */}
-        <line x1="24" y1="60" x2="76" y2="60" stroke={color} strokeWidth="1.2" />
-        <line x1="24" y1="68" x2="76" y2="68" stroke={color} strokeWidth="1.2" />
-        <line x1="32" y1="52" x2="32" y2="76" stroke={color} strokeWidth="1.2" />
-        <line x1="41" y1="52" x2="41" y2="76" stroke={color} strokeWidth="1.2" />
-        <line x1="50" y1="52" x2="50" y2="76" stroke={color} strokeWidth="1.5" />
-        <line x1="59" y1="52" x2="59" y2="76" stroke={color} strokeWidth="1.2" />
-        <line x1="68" y1="52" x2="68" y2="76" stroke={color} strokeWidth="1.2" />
-      </g>
+      {/* Palmeira Folhagem */}
+      <path d="M36 6V30" strokeWidth="3" strokeLinecap="round" />
+      <path d="M36 10 C30 10, 22 14, 18 20 C24 20, 31 18, 36 24" fill="currentColor" strokeWidth="1" />
+      <path d="M36 10 C42 10, 50 14, 54 20 C48 20, 41 18, 36 24" fill="currentColor" strokeWidth="1" />
+      <path d="M36 18 C28 20, 20 26, 17 32 C25 31, 31 27, 36 28" fill="currentColor" strokeWidth="1" />
+      <path d="M36 18 C44 20, 52 26, 55 32 C47 31, 41 27, 36 28" fill="currentColor" strokeWidth="1" />
+      {/* Rede de Beach Tennis / Base */}
+      <rect x="24" y="31" width="24" height="16" rx="2" fill="none" stroke="currentColor" strokeWidth="2.5" />
+      {/* Linhas da grade da rede */}
+      <line x1="30" y1="31" x2="30" y2="47" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="36" y1="31" x2="36" y2="47" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="42" y1="31" x2="42" y2="47" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="24" y1="36" x2="48" y2="36" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="24" y1="42" x2="48" y2="42" stroke="currentColor" strokeWidth="1.5" />
+      {/* Poste de suporte */}
+      <line x1="36" y1="47" x2="36" y2="55" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -54,49 +44,52 @@ export function BeachHouseLogo({ size = "normal" }) {
   return (
     <div className="flex flex-col items-center select-none text-center">
       {/* Linha Principal com Coqueiro ao Centro */}
-      <div className="flex items-center justify-center gap-2 sm:gap-4">
+      <div className="flex items-center justify-center gap-3 sm:gap-6 md:gap-8">
         <span
-          className={`font-black tracking-[0.18em] sm:tracking-[0.25em] text-[#4A692D] ${
-            isLarge ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-2xl'
+          className={`font-grotesk font-bold tracking-[0.22em] text-[#314a27] ${
+            isLarge ? 'text-[26px] sm:text-[34px] md:text-[42px]' : 'text-[20px] sm:text-[24px]'
           }`}
-          style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
         >
           BEACH
         </span>
 
-        <BeachHouseIcon
-          className={isLarge ? "w-14 h-14 sm:w-20 sm:h-20" : "w-10 h-10 sm:w-12 sm:h-12"}
-        />
+        <div className="flex flex-col items-center justify-center text-[#314a27]">
+          <BeachHouseIcon
+            className={isLarge ? "w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16" : "w-8 h-8 sm:w-10 sm:h-10"}
+          />
+        </div>
 
         <span
-          className={`font-black tracking-[0.18em] sm:tracking-[0.25em] text-[#4A692D] ${
-            isLarge ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-2xl'
+          className={`font-grotesk font-bold tracking-[0.22em] text-[#314a27] ${
+            isLarge ? 'text-[26px] sm:text-[34px] md:text-[42px]' : 'text-[20px] sm:text-[24px]'
           }`}
-          style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
         >
           HOUSE
         </span>
       </div>
 
-      {/* Subtítulo Sports N' Bar */}
-      <div
-        className={`tracking-[0.35em] sm:tracking-[0.45em] text-[#4A692D] font-extrabold mt-0.5 uppercase ${
-          isLarge ? 'text-xs sm:text-sm' : 'text-[10px] sm:text-xs'
-        }`}
-      >
-        SPORTS N' BAR
+      {/* Subtítulo SPORTS N' BAR */}
+      <div className="mt-1.5 sm:mt-2.5">
+        <span
+          className={`font-grotesk font-semibold tracking-[0.45em] text-[#314a27] uppercase pl-1.5 ${
+            isLarge ? 'text-[12px] sm:text-[15px] md:text-[17px]' : 'text-[10px] sm:text-[12px]'
+          }`}
+        >
+          SPORTS N' BAR
+        </span>
       </div>
 
-      {/* Slogan estilo manuscrito */}
-      <div className="flex items-center gap-3 mt-1.5 w-full justify-center">
-        <span className="h-[1px] w-8 sm:w-16 bg-[#4A692D]/40" />
+      {/* Slogan entre filetes delicados */}
+      <div className="flex items-center justify-center w-full max-w-xs sm:max-w-md mt-2 sm:mt-2.5 gap-3 sm:gap-4 px-2">
+        <span className="h-[1px] flex-1 bg-[#c4c8bf]/70" />
         <span
-          className="font-script text-[#4A692D] text-sm sm:text-lg tracking-wide font-bold"
-          style={{ fontFamily: '"Caveat", cursive' }}
+          className={`font-playfair italic text-[#314a27] tracking-wide whitespace-nowrap font-medium ${
+            isLarge ? 'text-[13px] sm:text-[16px] md:text-[18px]' : 'text-[12px] sm:text-[14px]'
+          }`}
         >
           Jogue, Beba, Viva o Beach!
         </span>
-        <span className="h-[1px] w-8 sm:w-16 bg-[#4A692D]/40" />
+        <span className="h-[1px] flex-1 bg-[#c4c8bf]/70" />
       </div>
     </div>
   );

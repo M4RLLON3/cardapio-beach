@@ -4,93 +4,105 @@ import { formatCurrency } from '../utils/formatters';
 
 export function ProductCard({ product, onSelectProduct }) {
   const isAvailable = product.isAvailable !== false;
+  const lowestPrice =
+    product.options && product.options.length > 1
+      ? Math.min(...product.options.map((o) => o.price))
+      : product.price;
 
   return (
-    <div
+    <article
       onClick={() => isAvailable && onSelectProduct(product)}
-      className={`group relative bg-[#FCFAF6] rounded-2xl p-3.5 sm:p-4 border-2 border-[#DDD7C4] shadow-sm transition-all duration-200 flex gap-3 sm:gap-4 overflow-hidden select-none ${
+      className={`group flex flex-col bg-white rounded-2xl overflow-hidden shadow-xs hover:shadow-md border border-[#e4e2de] transition-all duration-300 select-none ${
         isAvailable
-          ? 'hover:shadow-md hover:border-[#4A692D]/60 cursor-pointer active:scale-[0.99]'
-          : 'opacity-60 cursor-not-allowed bg-[#F5F2EB]'
+          ? 'cursor-pointer active:scale-[0.99]'
+          : 'opacity-65 cursor-not-allowed bg-[#fbf9f5]'
       }`}
     >
-      {/* Informações de Texto */}
-      <div className="flex-1 flex flex-col justify-between min-w-0">
-        <div>
-          {/* Badges */}
-          <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-            {!isAvailable ? (
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 uppercase tracking-wider">
-                Esgotado
-              </span>
-            ) : product.badge ? (
-              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-[#EAF0DF] text-[#3A5323] tracking-wide border border-[#4A692D]/20">
-                {product.badge}
-              </span>
-            ) : null}
-          </div>
-
-          <h3 className="font-extrabold text-[#2C3E18] text-sm sm:text-base leading-snug line-clamp-2 group-hover:text-[#4A692D] transition-colors">
-            {product.name}
-          </h3>
-
-          <p className="text-xs text-[#2C3E18]/70 mt-1 line-clamp-2 leading-relaxed">
-            {product.description}
-          </p>
-        </div>
-
-        {/* Preço e Botão */}
-        <div className="flex items-center justify-between mt-3 pt-2">
-          <div className="flex flex-col">
-            {product.options && product.options.length > 1 && (
-              <span className="text-[10px] font-semibold text-[#2C3E18]/60 uppercase tracking-wider">
-                A partir de
-              </span>
-            )}
-            <span className="font-black text-sm sm:text-base text-[#2C3E18]">
-              {product.options && product.options.length > 1
-                ? formatCurrency(Math.min(...product.options.map((o) => o.price)))
-                : formatCurrency(product.price)}
-            </span>
-          </div>
-
-          {isAvailable ? (
-            <button
-              type="button"
-              className="flex items-center gap-1 text-xs font-bold text-[#FCFAF6] bg-[#4A692D] hover:bg-[#3A5323] px-3 py-1.5 rounded-xl transition-all shadow-sm group-hover:scale-105"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
-              <span className="hidden sm:inline">
-                {product.options && product.options.length > 1 ? 'Opções' : 'Adicionar'}
-              </span>
-            </button>
-          ) : (
-            <span className="text-xs text-[#2C3E18]/40 font-medium">Indisponível</span>
-          )}
-        </div>
-      </div>
-
-      {/* Imagem do Produto */}
-      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden flex-shrink-0 bg-[#ECE7D8] relative border border-[#DDD7C4]">
+      {/* Imagem do Produto em Proporção 16/10 Editorial */}
+      <div className="relative w-full aspect-[16/10] overflow-hidden bg-[#efeeea]">
         <img
           src={product.imageUrl}
           alt={product.name}
           loading="lazy"
-          className={`w-full h-full object-cover transition-transform duration-300 ${
-            isAvailable ? 'group-hover:scale-110' : 'grayscale'
+          className={`w-full h-full object-cover transition-transform duration-500 ease-out ${
+            isAvailable ? 'group-hover:scale-[1.03]' : 'grayscale'
           }`}
           onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=300&q=80';
+            e.target.src =
+              'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
           }}
         />
+
+        {/* Badges superiores */}
+        {product.badge && isAvailable && (
+          <div className="absolute top-3 sm:top-3.5 left-3 sm:left-3.5">
+            <span className="px-2.5 sm:px-3 py-1 bg-[#daeaaa] text-[#161f00] font-grotesk text-[10px] sm:text-[11px] uppercase tracking-widest font-bold rounded-lg shadow-xs backdrop-blur-sm">
+              {product.badge}
+            </span>
+          </div>
+        )}
+
         {!isAvailable && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center p-1">
-            <span className="text-[10px] text-white font-extrabold uppercase text-center bg-rose-600/90 px-1.5 py-0.5 rounded">
+          <div className="absolute top-3 sm:top-3.5 left-3 sm:left-3.5">
+            <span className="px-2.5 sm:px-3 py-1 bg-[#ba1a1a] text-white font-grotesk text-[10px] sm:text-[11px] uppercase tracking-widest font-bold rounded-lg shadow-xs">
               Esgotado
             </span>
           </div>
         )}
       </div>
-    </div>
+
+      {/* Conteúdo do Card */}
+      <div className="p-4 sm:p-6 flex flex-col flex-1 justify-between gap-3 sm:gap-4">
+        <div>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-grotesk text-base sm:text-lg font-bold text-[#132512] tracking-tight group-hover:text-[#283b26] transition-colors leading-snug">
+              {product.name}
+            </h2>
+            <div className="text-right flex-shrink-0">
+              {product.options && product.options.length > 1 && (
+                <span className="block text-[10px] uppercase font-bold text-[#747870] font-grotesk">
+                  A partir de
+                </span>
+              )}
+              <span className="font-grotesk text-base sm:text-lg text-[#132512] font-bold whitespace-nowrap">
+                {formatCurrency(lowestPrice)}
+              </span>
+            </div>
+          </div>
+
+          {product.description && (
+            <p className="font-manrope text-xs sm:text-sm text-[#434841] mt-1.5 sm:mt-2 leading-relaxed line-clamp-2">
+              {product.description}
+            </p>
+          )}
+        </div>
+
+        {/* Rodapé do Card com Ação */}
+        <div className="pt-2.5 sm:pt-3 border-t border-[#f5f3ef] flex items-center justify-between">
+          <span className="font-grotesk text-xs uppercase tracking-wider text-[#747870] flex items-center gap-1.5 truncate max-w-[55%]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#566431] flex-shrink-0" />
+            <span className="truncate">{product.categoryName || 'Artesanal'}</span>
+          </span>
+
+          {isAvailable ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectProduct(product);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs uppercase tracking-wider font-bold rounded-xl transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <span>{product.options && product.options.length > 1 ? 'Opções' : 'Adicionar'}</span>
+            </button>
+          ) : (
+            <span className="text-xs font-grotesk text-[#747870] font-semibold">
+              Indisponível
+            </span>
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
