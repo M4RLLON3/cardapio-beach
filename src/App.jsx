@@ -11,6 +11,7 @@ import { CheckoutModal } from './components/CheckoutModal';
 import { OrderSuccessModal } from './components/OrderSuccessModal';
 import { FloatingCartButton } from './components/FloatingCartButton';
 import { AdminPage } from './pages/AdminPage';
+import { AdminAuthView } from './components/AdminAuthView';
 import { BeachHouseLogo } from './components/BeachHouseLogo';
 
 const STORE_CONFIG_STORAGE_KEY = 'beach_house_store_config_v1';
@@ -20,17 +21,34 @@ const ORDERS_STORAGE_KEY = 'beach_house_orders_v1';
 export default function App() {
   // Controle de Rota / Página
   const [currentPage, setCurrentPage] = useState(() => {
-    const hash = window.location.hash.toLowerCase();
-    const path = window.location.pathname.toLowerCase();
-    if (hash === '#admin' || path === '/admin') return 'admin';
+    const hash = (window.location.hash || '').toLowerCase();
+    const path = (window.location.pathname || '').toLowerCase();
+    if (hash === '#admin' || hash === '#/admin' || path === '/admin') return 'admin';
     return 'menu';
   });
 
+  // Sessão de Autenticação do Lojista
+  const [adminSession, setAdminSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem('beach_house_admin_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleAdminLogout = () => {
+    try {
+      localStorage.removeItem('beach_house_admin_session');
+    } catch {}
+    setAdminSession(null);
+  };
+
   useEffect(() => {
     const handleNavigation = () => {
-      const hash = window.location.hash.toLowerCase();
-      const path = window.location.pathname.toLowerCase();
-      if (hash === '#admin' || path === '/admin') {
+      const hash = (window.location.hash || '').toLowerCase();
+      const path = (window.location.pathname || '').toLowerCase();
+      if (hash === '#admin' || hash === '#/admin' || path === '/admin') {
         setCurrentPage('admin');
       } else {
         setCurrentPage('menu');
@@ -46,8 +64,21 @@ export default function App() {
   }, []);
 
   const navigateToMenu = () => {
-    window.location.hash = '';
+    try {
+      if (window.location.hash) {
+        window.history.pushState(null, '', window.location.pathname);
+      }
+    } catch {
+      window.location.hash = '';
+    }
     setCurrentPage('menu');
+  };
+
+  const navigateToAdmin = () => {
+    try {
+      window.location.hash = 'admin';
+    } catch {}
+    setCurrentPage('admin');
   };
 
   // Configurações da Loja
@@ -233,6 +264,27 @@ export default function App() {
 
   // Se o usuário estiver na página admin
   if (currentPage === 'admin') {
+    if (!adminSession) {
+      return (
+        <AdminAuthView
+          onLoginSuccess={(session) => {
+            setAdminSession(session);
+          }}
+          onBackToMenu={navigateToMenu}
+          onResetToOfficialMenu={resetProductsToOfficialMenu}
+          onSyncStoreInfo={(info) => {
+            if (updateStoreInfo) {
+              updateStoreInfo({
+                ...(info.name ? { name: info.name } : {}),
+                ...(info.address ? { address: info.address } : {}),
+                ...(info.whatsappNumber ? { whatsappNumber: info.whatsappNumber } : {}),
+              });
+            }
+          }}
+        />
+      );
+    }
+
     return (
       <AdminPage
         storeInfo={storeInfo}
@@ -244,6 +296,8 @@ export default function App() {
         orders={orders}
         onUpdateOrders={updateOrders}
         onBackToMenu={navigateToMenu}
+        adminSession={adminSession}
+        onLogout={handleAdminLogout}
       />
     );
   }
@@ -252,7 +306,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F5F2EB] text-[#2C3E18] pb-28 sm:pb-20 flex flex-col font-sans selection:bg-[#4A692D] selection:text-white">
       {/* Header do Cardápio */}
-      <Header storeInfo={storeInfo} />
+      <Header storeInfo={storeInfo} onNavigateToAdmin={navigateToAdmin} />
 
       {/* Barra de Navegação por Categorias Fixa */}
       {!searchQuery && (

@@ -1,16 +1,31 @@
 import React from 'react';
-import { Clock, MapPin, Bike } from 'lucide-react';
+import { Clock, MapPin, Bike, ShieldCheck } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
 import { BeachHouseLogo } from './BeachHouseLogo';
 
-export function Header({ storeInfo }) {
+export function Header({ storeInfo, onNavigateToAdmin }) {
   return (
     <header className="relative bg-[#FCFAF6] border-b-2 border-[#DDD7C4] shadow-xs overflow-hidden">
       {/* Conteúdo Principal do Cabeçalho */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-5 relative z-10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-4 pb-5 relative z-10">
         
+        {/* Barra Superior com Atalho para a Área da Loja */}
+        {onNavigateToAdmin && (
+          <div className="flex items-center justify-end mb-2">
+            <button
+              type="button"
+              onClick={onNavigateToAdmin}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F5F2EB] hover:bg-[#EAF0DF] border border-[#DDD7C4] text-[11px] font-bold text-[#3A5323] transition-all cursor-pointer shadow-xs active:scale-95"
+              title="Acessar Área Administrativa / Login da Loja"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#4A692D]" />
+              <span>Área da Loja</span>
+            </button>
+          </div>
+        )}
+
         {/* Logotipo Centralizado com Identidade do Cartão Fidelidade */}
-        <div className="py-2">
+        <div className="py-1">
           <BeachHouseLogo size="large" />
         </div>
 

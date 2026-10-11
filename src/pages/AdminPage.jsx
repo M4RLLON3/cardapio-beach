@@ -39,7 +39,7 @@ import {
   generateWhatsAppUrl,
 } from '../utils/formatters';
 import { generateCompletedOrdersPdf } from '../utils/pdfReport';
-import { AdminAuthView, formatCNPJ } from '../components/AdminAuthView';
+import { formatCNPJ } from '../components/AdminAuthView';
 
 const getLocalDateString = (d = new Date()) => {
   const year = d.getFullYear();
@@ -136,6 +136,8 @@ export function AdminPage({
   orders = [],
   onUpdateOrders,
   onBackToMenu,
+  adminSession,
+  onLogout,
 }) {
   const [formData, setFormData] = useState({
     name: storeInfo.name,
@@ -190,43 +192,6 @@ export function AdminPage({
   const pdfAverageTicket = pdfFilteredOrders.length > 0 ? pdfTotalRevenue / pdfFilteredOrders.length : 0;
 
   const pendingOrdersCount = orders.filter((o) => o.status === 'pendente').length;
-
-  // Sessão de Autenticação do Lojista
-  const [adminSession, setAdminSession] = useState(() => {
-    try {
-      const saved = localStorage.getItem('beach_house_admin_session');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const handleLogout = () => {
-    localStorage.removeItem('beach_house_admin_session');
-    setAdminSession(null);
-  };
-
-  // Se não estiver autenticado, exibe a tela de login com CNPJ e solicitação de acesso
-  if (!adminSession) {
-    return (
-      <AdminAuthView
-        onLoginSuccess={(session) => {
-          setAdminSession(session);
-        }}
-        onBackToMenu={onBackToMenu}
-        onResetToOfficialMenu={onResetToOfficialMenu}
-        onSyncStoreInfo={(info) => {
-          if (onUpdateStoreInfo) {
-            onUpdateStoreInfo({
-              ...(info.name ? { name: info.name } : {}),
-              ...(info.address ? { address: info.address } : {}),
-              ...(info.whatsappNumber ? { whatsappNumber: info.whatsappNumber } : {}),
-            });
-          }
-        }}
-      />
-    );
-  }
 
   const handleSaveStore = (e) => {
     e.preventDefault();
@@ -494,7 +459,7 @@ export function AdminPage({
 
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={onLogout}
               className="inline-flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200/80 px-2.5 py-1 rounded-full transition cursor-pointer"
               title="Sair do Painel"
             >
