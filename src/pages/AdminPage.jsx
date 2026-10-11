@@ -31,6 +31,9 @@ import {
   Check,
   ChevronRight,
   TrendingUp,
+  Upload,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   formatCurrency,
@@ -44,6 +47,48 @@ import {
   CATEGORIES as DEFAULT_CATEGORIES,
   PRODUCTS as OFFICIAL_PRODUCTS,
 } from '../data/storeData';
+
+const compressImageFile = (file, maxWidth = 900, maxHeight = 900, quality = 0.8) => {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) {
+      reject(new Error('Por favor, selecione um arquivo de imagem válido.'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('Erro ao processar imagem.'));
+    };
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo do dispositivo.'));
+  });
+};
 
 const getLocalDateString = (d = new Date()) => {
   const year = d.getFullYear();
@@ -173,6 +218,29 @@ export function AdminPage({
   // Modal para Editar Produto Existente
   const [isEditProductOpen, setIsEditProductOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [isPhotoLoading, setIsPhotoLoading] = useState(false);
+
+  // Upload e Processamento de Foto do Aparelho
+  const handlePhotoUpload = async (e, isEditing = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsPhotoLoading(true);
+      const compressedDataUrl = await compressImageFile(file);
+      if (isEditing) {
+        setEditingProduct((prev) => (prev ? { ...prev, imageUrl: compressedDataUrl } : null));
+      } else {
+        setNewProduct((prev) => ({ ...prev, imageUrl: compressedDataUrl }));
+      }
+      showProductFeedback('Foto carregada com sucesso.');
+    } catch (err) {
+      alert(err.message || 'Erro ao carregar a imagem. Tente novamente.');
+    } finally {
+      setIsPhotoLoading(false);
+      e.target.value = '';
+    }
+  };
 
   // Modal de Filtro de Data para Relatório PDF
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
@@ -1247,132 +1315,212 @@ export function AdminPage({
       </main>
 
       {/* ══════════════════════════════════════════════════════════
-          MODAL: ADICIONAR NOVO PRODUTO
+          MODAL: ADICIONAR NOVO PRODUTO (AMPLO E LEGÍVEL)
       ══════════════════════════════════════════════════════════ */}
       {isAddProductOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
           <div className="fixed inset-0" onClick={() => setIsAddProductOpen(false)} />
 
-          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-[#e4e2de] shadow-2xl overflow-hidden z-10 flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="p-4 border-b border-[#efeeea] flex items-center justify-between bg-[#fbf9f5]">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-[#daeaaa] text-[#161f00] rounded-xl">
-                  <Plus className="w-4 h-4 stroke-[2.5]" />
+          <div className="relative w-full max-w-3xl bg-white rounded-3xl border border-[#e4e2de] shadow-2xl overflow-hidden z-10 flex flex-col my-auto max-h-[92vh] animate-in zoom-in-95 duration-200">
+            {/* Cabeçalho do Modal */}
+            <div className="p-5 sm:p-6 border-b border-[#efeeea] flex items-center justify-between bg-[#fbf9f5] flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-[#daeaaa] text-[#161f00] rounded-2xl">
+                  <Plus className="w-5 h-5 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="font-grotesk text-base font-bold text-[#132512]">Cadastrar Novo Item</h3>
-                  <p className="font-manrope text-[11px] text-[#747870]">Adicione um prato, porção ou bebida</p>
+                  <h3 className="font-grotesk text-xl sm:text-2xl font-bold text-[#132512]">Cadastrar Novo Item</h3>
+                  <p className="font-manrope text-xs sm:text-sm text-[#747870]">Adicione um prato, porção ou bebida ao cardápio</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddProductOpen(false)}
-                className="p-1.5 text-[#747870] hover:text-[#132512] rounded-xl hover:bg-[#efeeea] cursor-pointer"
+                className="p-2 text-[#747870] hover:text-[#132512] rounded-2xl hover:bg-[#efeeea] transition cursor-pointer"
+                title="Fechar"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateProduct} className="p-5 space-y-3.5 text-xs font-manrope overflow-y-auto max-h-[80vh]">
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Nome do Produto *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                  placeholder="Ex.: Iscas de Tilápia Crocantes"
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
-                />
+            {/* Formulário com Rolagem e Layout Amplo */}
+            <form onSubmit={handleCreateProduct} className="p-6 sm:p-8 space-y-6 text-sm font-manrope overflow-y-auto flex-1">
+              {/* Área de Foto do Produto */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#fbf9f5] border border-[#e4e2de] space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-[#283b26]" />
+                    <span>Foto do Produto</span>
+                  </label>
+                  {newProduct.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setNewProduct({ ...newProduct, imageUrl: '' })}
+                      className="text-xs font-grotesk font-semibold text-[#ba1a1a] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remover Foto</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                  {/* Pré-visualização */}
+                  <div className="sm:col-span-5 relative w-full h-44 rounded-2xl overflow-hidden border-2 border-dashed border-[#c4c8bf] bg-[#f5f3ef] flex flex-col items-center justify-center">
+                    {newProduct.imageUrl ? (
+                      <img
+                        src={newProduct.imageUrl}
+                        alt="Pré-visualização do produto"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src =
+                            'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
+                    ) : (
+                      <label
+                        htmlFor="add-product-photo-file"
+                        className="w-full h-full flex flex-col items-center justify-center p-4 cursor-pointer hover:bg-[#eae8e4] transition text-center"
+                      >
+                        <div className="p-3 bg-white rounded-full text-[#4f644c] shadow-xs mb-2">
+                          <Camera className="w-6 h-6 stroke-[2]" />
+                        </div>
+                        <span className="font-grotesk text-xs font-bold text-[#132512]">Nenhuma foto selecionada</span>
+                        <span className="font-manrope text-[11px] text-[#747870] mt-0.5">Clique para escolher do aparelho</span>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Ações de Foto */}
+                  <div className="sm:col-span-7 flex flex-col justify-center space-y-3">
+                    <div>
+                      <input
+                        id="add-product-photo-file"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handlePhotoUpload(e, false)}
+                      />
+                      <label
+                        htmlFor="add-product-photo-file"
+                        className="inline-flex items-center justify-center w-full sm:w-auto px-5 py-3 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xs transition cursor-pointer"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        <span>{newProduct.imageUrl ? 'Trocar Foto do Aparelho' : 'Adicionar Foto do Aparelho'}</span>
+                      </label>
+                      <p className="text-[11px] text-[#747870] mt-1.5 font-manrope">
+                        Suporta fotos tiradas na câmera ou arquivos da galeria (JPG, PNG, WebP).
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#e4e2de]/80">
+                      <label className="block font-grotesk text-[11px] font-bold uppercase text-[#747870] mb-1">
+                        Ou informe o link / URL da foto:
+                      </label>
+                      <input
+                        type="url"
+                        value={newProduct.imageUrl}
+                        onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
+                        placeholder="https://exemplo.com/foto.jpg (opcional)"
+                        className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-white focus:border-[#283b26] outline-none text-[#132512] font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Grupo / Categoria *
-                </label>
-                <select
-                  value={newProduct.categoryId}
-                  onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
-                >
-                  {DEFAULT_CATEGORIES.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                  <option value="custom">+ Outro Grupo / Nova Categoria</option>
-                </select>
-
-                {newProduct.categoryId === 'custom' && (
+              {/* Dados Principais do Item */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Nome do Produto */}
+                <div className="md:col-span-2">
+                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                    Nome do Produto *
+                  </label>
                   <input
                     type="text"
                     required
-                    value={newProduct.customCategoryName}
-                    onChange={(e) => setNewProduct({ ...newProduct, customCategoryName: e.target.value })}
-                    placeholder="Digite o nome do novo grupo"
-                    className="w-full mt-2 p-2 rounded-xl border border-[#e4e2de] bg-white focus:border-[#283b26] outline-none text-xs font-grotesk font-semibold"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                    placeholder="Ex.: Iscas de Tilápia Crocantes"
+                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
                   />
-                )}
+                </div>
+
+                {/* Grupo / Categoria */}
+                <div>
+                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                    Grupo / Categoria *
+                  </label>
+                  <select
+                    value={newProduct.categoryId}
+                    onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}
+                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
+                  >
+                    {DEFAULT_CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                    <option value="custom">+ Outro Grupo / Nova Categoria</option>
+                  </select>
+
+                  {newProduct.categoryId === 'custom' && (
+                    <input
+                      type="text"
+                      required
+                      value={newProduct.customCategoryName}
+                      onChange={(e) => setNewProduct({ ...newProduct, customCategoryName: e.target.value })}
+                      placeholder="Digite o nome do novo grupo"
+                      className="w-full mt-2.5 p-3 rounded-xl border border-[#e4e2de] bg-white focus:border-[#283b26] outline-none text-sm font-grotesk font-semibold text-[#132512]"
+                    />
+                  )}
+                </div>
+
+                {/* Valor (R$) */}
+                <div>
+                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                    Valor (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    required
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                    placeholder="Ex.: 35.00"
+                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
+                  />
+                </div>
+
+                {/* Descrição dos Ingredientes / Porção */}
+                <div className="md:col-span-2">
+                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                    Descrição dos Ingredientes / Porção
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={newProduct.description}
+                    onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                    placeholder="Ex.: Empanado em farinha especial com raspas de limão e molho tártaro artesanal."
+                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none resize-none text-sm sm:text-base text-[#132512]"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Valor (R$) *
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  required
-                  value={newProduct.price}
-                  onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                  placeholder="Ex.: 35.00"
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Descrição dos Ingredientes / Porção
-                </label>
-                <textarea
-                  rows={2}
-                  value={newProduct.description}
-                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                  placeholder="Ex.: Empanado em farinha especial com raspas de limão e molho tártaro."
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none resize-none text-[#132512]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Link / URL da Foto do Produto
-                </label>
-                <input
-                  type="url"
-                  value={newProduct.imageUrl}
-                  onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
-                  placeholder="https://exemplo.com/foto.jpg (opcional)"
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none text-[#132512] font-mono text-xs"
-                />
-                <p className="text-[10px] text-[#747870] mt-1">
-                  Se deixar em branco, uma foto profissional temática da categoria será usada automaticamente.
-                </p>
-              </div>
-
-              <div className="pt-3 border-t border-[#efeeea] flex items-center justify-end gap-2">
+              {/* Rodapé com Botões de Ação */}
+              <div className="pt-4 border-t border-[#efeeea] flex items-center justify-end gap-3 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAddProductOpen(false)}
-                  className="px-3.5 py-2 rounded-xl border border-[#e4e2de] text-[#747870] hover:text-[#132512] font-grotesk text-xs uppercase tracking-wider font-semibold cursor-pointer"
+                  className="px-5 py-3 rounded-xl border border-[#e4e2de] text-[#747870] hover:text-[#132512] font-grotesk text-xs sm:text-sm uppercase tracking-wider font-semibold cursor-pointer hover:bg-[#efeeea] transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs uppercase tracking-wider font-semibold py-2 px-4 rounded-xl shadow-xs transition cursor-pointer"
+                  disabled={isPhotoLoading}
+                  className="bg-[#283b26] hover:bg-[#132512] disabled:opacity-50 text-white font-grotesk text-xs sm:text-sm uppercase tracking-wider font-bold py-3 px-6 rounded-xl shadow-xs transition cursor-pointer"
                 >
                   Cadastrar Produto
                 </button>
@@ -1383,151 +1531,240 @@ export function AdminPage({
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          MODAL: EDITAR PRODUTO EXISTENTE
+          MODAL: EDITAR PRODUTO EXISTENTE (AMPLO E LEGÍVEL)
       ══════════════════════════════════════════════════════════ */}
       {isEditProductOpen && editingProduct && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
           <div className="fixed inset-0" onClick={() => setIsEditProductOpen(false)} />
 
-          <div className="relative w-full max-w-lg bg-white rounded-2xl border border-[#e4e2de] shadow-2xl overflow-hidden z-10 flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="p-4 border-b border-[#efeeea] flex items-center justify-between bg-[#fbf9f5]">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-[#daeaaa] text-[#161f00] rounded-xl">
-                  <Pencil className="w-4 h-4 stroke-[2.5]" />
+          <div className="relative w-full max-w-3xl bg-white rounded-3xl border border-[#e4e2de] shadow-2xl overflow-hidden z-10 flex flex-col my-auto max-h-[92vh] animate-in zoom-in-95 duration-200">
+            {/* Cabeçalho do Modal */}
+            <div className="p-5 sm:p-6 border-b border-[#efeeea] flex items-center justify-between bg-[#fbf9f5] flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-[#daeaaa] text-[#161f00] rounded-2xl">
+                  <Pencil className="w-5 h-5 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="font-grotesk text-base font-bold text-[#132512]">Editar Produto</h3>
-                  <p className="font-manrope text-[11px] text-[#747870]">Altere os dados cadastrais deste item</p>
+                  <h3 className="font-grotesk text-xl sm:text-2xl font-bold text-[#132512]">Editar Produto</h3>
+                  <p className="font-manrope text-xs sm:text-sm text-[#747870]">Altere as fotos, valor e dados deste item</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsEditProductOpen(false)}
-                className="p-1.5 text-[#747870] hover:text-[#132512] rounded-xl hover:bg-[#efeeea] cursor-pointer"
+                className="p-2 text-[#747870] hover:text-[#132512] rounded-2xl hover:bg-[#efeeea] transition cursor-pointer"
+                title="Fechar"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedProduct} className="p-5 space-y-3.5 text-xs font-manrope overflow-y-auto max-h-[80vh]">
-              {/* Preview da Foto Atual */}
-              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#f5f3ef] border border-[#e4e2de]">
-                <img
-                  src={editingProduct.imageUrl}
-                  alt={editingProduct.name}
-                  className="w-12 h-12 rounded-lg object-cover border border-[#e4e2de] bg-stone-100"
-                  onError={(e) => {
-                    e.target.src =
-                      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=200&q=80';
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <span className="font-grotesk text-[10px] font-bold uppercase text-[#747870] block">Foto Atual</span>
-                  <span className="font-grotesk text-xs font-bold text-[#132512] truncate block">{editingProduct.name}</span>
+            {/* Formulário com Rolagem e Layout Amplo */}
+            <form onSubmit={handleSaveEditedProduct} className="p-6 sm:p-8 space-y-6 text-sm font-manrope overflow-y-auto flex-1">
+              {/* Área de Foto do Produto com Opção de Upload */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#fbf9f5] border border-[#e4e2de] space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-[#283b26]" />
+                    <span>Foto do Produto</span>
+                  </label>
+                  {editingProduct.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingProduct({ ...editingProduct, imageUrl: '' })}
+                      className="text-xs font-grotesk font-semibold text-[#ba1a1a] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remover Foto</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                  {/* Pré-visualização da Foto */}
+                  <div className="sm:col-span-5 relative w-full h-44 rounded-2xl overflow-hidden border-2 border-dashed border-[#c4c8bf] bg-[#f5f3ef] flex flex-col items-center justify-center">
+                    {editingProduct.imageUrl ? (
+                      <img
+                        src={editingProduct.imageUrl}
+                        alt={editingProduct.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src =
+                            'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
+                    ) : (
+                      <label
+                        htmlFor="edit-product-photo-file"
+                        className="w-full h-full flex flex-col items-center justify-center p-4 cursor-pointer hover:bg-[#eae8e4] transition text-center"
+                      >
+                        <div className="p-3 bg-white rounded-full text-[#4f644c] shadow-xs mb-2">
+                          <Camera className="w-6 h-6 stroke-[2]" />
+                        </div>
+                        <span className="font-grotesk text-xs font-bold text-[#132512]">Nenhuma foto selecionada</span>
+                        <span className="font-manrope text-[11px] text-[#747870] mt-0.5">Clique para escolher do aparelho</span>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Ações de Foto */}
+                  <div className="sm:col-span-7 flex flex-col justify-center space-y-3">
+                    <div>
+                      <input
+                        id="edit-product-photo-file"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handlePhotoUpload(e, true)}
+                      />
+                      <label
+                        htmlFor="edit-product-photo-file"
+                        className="inline-flex items-center justify-center w-full sm:w-auto px-5 py-3 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xs transition cursor-pointer"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        <span>{editingProduct.imageUrl ? 'Trocar Foto do Aparelho' : 'Adicionar Foto do Aparelho'}</span>
+                      </label>
+                      <p className="text-[11px] text-[#747870] mt-1.5 font-manrope">
+                        Tire uma nova foto com a câmera ou escolha um arquivo da galeria.
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#e4e2de]/80">
+                      <label className="block font-grotesk text-[11px] font-bold uppercase text-[#747870] mb-1">
+                        Ou informe o link / URL da foto:
+                      </label>
+                      <input
+                        type="url"
+                        value={editingProduct.imageUrl || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, imageUrl: e.target.value })}
+                        placeholder="https://exemplo.com/foto.jpg"
+                        className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-white focus:border-[#283b26] outline-none text-[#132512] font-mono text-xs"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Nome do Produto *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editingProduct.name}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Grupo / Categoria *
-                </label>
-                <select
-                  value={editingProduct.isCustomCategory ? 'custom' : editingProduct.categoryId}
-                  onChange={(e) => {
-                    const isCustom = e.target.value === 'custom';
-                    setEditingProduct({
-                      ...editingProduct,
-                      isCustomCategory: isCustom,
-                      categoryId: isCustom ? 'custom' : e.target.value,
-                    });
-                  }}
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
-                >
-                  {DEFAULT_CATEGORIES.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                  <option value="custom">+ Outro Grupo / Nova Categoria</option>
-                </select>
-
-                {editingProduct.isCustomCategory && (
+              {/* Dados Principais do Item */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Nome do Produto */}
+                <div className="md:col-span-2">
+                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                    Nome do Produto *
+                  </label>
                   <input
                     type="text"
                     required
-                    value={editingProduct.customCategoryName || ''}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, customCategoryName: e.target.value })
-                    }
-                    placeholder="Digite o nome do novo grupo"
-                    className="w-full mt-2 p-2 rounded-xl border border-[#e4e2de] bg-white focus:border-[#283b26] outline-none text-xs font-grotesk font-semibold"
+                    value={editingProduct.name}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
                   />
-                )}
+                </div>
+
+                {/* Grupo / Categoria */}
+                <div>
+                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                    Grupo / Categoria *
+                  </label>
+                  <select
+                    value={editingProduct.isCustomCategory ? 'custom' : editingProduct.categoryId}
+                    onChange={(e) => {
+                      const isCustom = e.target.value === 'custom';
+                      setEditingProduct({
+                        ...editingProduct,
+                        isCustomCategory: isCustom,
+                        categoryId: isCustom ? 'custom' : e.target.value,
+                      });
+                    }}
+                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
+                  >
+                    {DEFAULT_CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                    <option value="custom">+ Outro Grupo / Nova Categoria</option>
+                  </select>
+
+                  {editingProduct.isCustomCategory && (
+                    <input
+                      type="text"
+                      required
+                      value={editingProduct.customCategoryName || ''}
+                      onChange={(e) =>
+                        setEditingProduct({ ...editingProduct, customCategoryName: e.target.value })
+                      }
+                      placeholder="Digite o nome do novo grupo"
+                      className="w-full mt-2.5 p-3 rounded-xl border border-[#e4e2de] bg-white focus:border-[#283b26] outline-none text-sm font-grotesk font-semibold text-[#132512]"
+                    />
+                  )}
+                </div>
+
+                {/* Valor (R$) */}
+                <div>
+                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                    Valor (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    required
+                    value={editingProduct.price}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
+                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
+                  />
+                </div>
+
+                {/* Disponibilidade */}
+                <div className="md:col-span-2">
+                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-[#fbf9f5] border border-[#e4e2de] cursor-pointer hover:bg-stone-50 transition">
+                    <input
+                      type="checkbox"
+                      checked={editingProduct.isAvailable !== false}
+                      onChange={(e) =>
+                        setEditingProduct({ ...editingProduct, isAvailable: e.target.checked })
+                      }
+                      className="w-4 h-4 rounded text-[#283b26] accent-[#283b26] cursor-pointer"
+                    />
+                    <div>
+                      <span className="font-grotesk text-xs sm:text-sm font-bold text-[#132512] block">
+                        Item disponível para pedidos no cardápio
+                      </span>
+                      <span className="font-manrope text-[11px] text-[#747870] block">
+                        Desmarque para pausar temporariamente as vendas deste item.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Descrição dos Ingredientes / Porção */}
+                <div className="md:col-span-2">
+                  <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
+                    Descrição dos Ingredientes / Porção
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editingProduct.description}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                    className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none resize-none text-sm sm:text-base text-[#132512]"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Valor (R$) *
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  required
-                  value={editingProduct.price}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-[#132512]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Descrição dos Ingredientes / Porção
-                </label>
-                <textarea
-                  rows={2}
-                  value={editingProduct.description}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none resize-none text-[#132512]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-grotesk text-[11px] font-bold uppercase tracking-wider text-[#132512] mb-1">
-                  Link / URL da Foto do Produto
-                </label>
-                <input
-                  type="url"
-                  value={editingProduct.imageUrl}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, imageUrl: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none text-[#132512] font-mono text-xs"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-[#efeeea] flex items-center justify-end gap-2">
+              {/* Rodapé com Botões de Ação */}
+              <div className="pt-4 border-t border-[#efeeea] flex items-center justify-end gap-3 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsEditProductOpen(false)}
-                  className="px-3.5 py-2 rounded-xl border border-[#e4e2de] text-[#747870] hover:text-[#132512] font-grotesk text-xs uppercase tracking-wider font-semibold cursor-pointer"
+                  className="px-5 py-3 rounded-xl border border-[#e4e2de] text-[#747870] hover:text-[#132512] font-grotesk text-xs sm:text-sm uppercase tracking-wider font-semibold cursor-pointer hover:bg-[#efeeea] transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs uppercase tracking-wider font-semibold py-2 px-4 rounded-xl shadow-xs transition cursor-pointer"
+                  disabled={isPhotoLoading}
+                  className="bg-[#283b26] hover:bg-[#132512] disabled:opacity-50 text-white font-grotesk text-xs sm:text-sm uppercase tracking-wider font-bold py-3 px-6 rounded-xl shadow-xs transition cursor-pointer"
                 >
                   Salvar Alterações
                 </button>

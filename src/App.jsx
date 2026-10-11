@@ -306,7 +306,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F5F2EB] text-[#2C3E18] pb-28 sm:pb-20 flex flex-col font-sans selection:bg-[#4A692D] selection:text-white">
       {/* Header do Cardápio */}
-      <Header storeInfo={storeInfo} onNavigateToAdmin={navigateToAdmin} />
+      <Header storeInfo={storeInfo} />
 
       {/* Barra de Navegação por Categorias Fixa */}
       {!searchQuery && (
