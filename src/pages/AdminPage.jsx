@@ -38,6 +38,7 @@ import {
   Bell,
   BellRing,
   Play,
+  Crop,
 } from 'lucide-react';
 import {
   formatCurrency,
@@ -50,8 +51,7 @@ import { formatCNPJ } from '../components/AdminAuthView';
 import {
   CATEGORIES as DEFAULT_CATEGORIES,
 } from '../data/storeData';
-import { ProductBadgeIcon, BADGE_ICONS } from '../components/ProductBadgeIcon';
-import { BadgeSelectorField } from '../components/BadgeSelectorField';
+import { ProductPhotoEditor } from '../components/ProductPhotoEditor';
 import {
   playOrderNotificationSound,
   isOrderSoundEnabled,
@@ -383,6 +383,8 @@ export function AdminPage({
     });
   };
   const [isPhotoLoading, setIsPhotoLoading] = useState(false);
+  const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
+  const [photoEditorTarget, setPhotoEditorTarget] = useState('new'); // 'new' | 'edit'
 
   // Upload e Processamento de Foto do Aparelho
   const handlePhotoUpload = async (e, isEditing = false) => {
@@ -394,10 +396,13 @@ export function AdminPage({
       const compressedDataUrl = await compressImageFile(file);
       if (isEditing) {
         setEditingProduct((prev) => (prev ? { ...prev, imageUrl: compressedDataUrl } : null));
+        setPhotoEditorTarget('edit');
       } else {
         setNewProduct((prev) => ({ ...prev, imageUrl: compressedDataUrl }));
+        setPhotoEditorTarget('new');
       }
-      showProductFeedback('Foto carregada com sucesso.');
+      setIsPhotoEditorOpen(true);
+      showProductFeedback('Foto carregada. Você pode ajustar o enquadramento.');
     } catch (err) {
       alert(err.message || 'Erro ao carregar a imagem. Tente novamente.');
     } finally {
@@ -1220,14 +1225,8 @@ export function AdminPage({
                             }}
                           />
 
-                          {/* Badge de Destaque ou Categoria */}
+                          {/* Categoria do Produto */}
                           <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-                            {product.badge && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#daeaaa] text-[#161f00] font-grotesk text-[10px] font-bold uppercase tracking-widest rounded-lg backdrop-blur-sm shadow-2xs">
-                                <ProductBadgeIcon iconKey={product.badgeIcon} className="w-3.5 h-3.5 stroke-[#161f00]" />
-                                <span>{product.badge}</span>
-                              </span>
-                            )}
                             <span className="px-2 py-0.5 bg-black/60 text-white font-grotesk text-[10px] uppercase tracking-wider rounded-md backdrop-blur-sm">
                               {getCategoryLabel(product.categoryId, product.categoryName)}
                             </span>
@@ -1813,31 +1812,60 @@ export function AdminPage({
                     <Camera className="w-4 h-4 text-[#283b26]" />
                     <span>Foto do Produto</span>
                   </label>
-                  {newProduct.imageUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setNewProduct({ ...newProduct, imageUrl: '' })}
-                      className="text-xs font-grotesk font-semibold text-[#ba1a1a] hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remover Foto</span>
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {newProduct.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoEditorTarget('new');
+                          setIsPhotoEditorOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#daeaaa] hover:bg-[#becd90] text-[#161f00] text-xs font-grotesk font-bold transition cursor-pointer"
+                        title="Ajustar enquadramento, zoom e rotação"
+                      >
+                        <Crop className="w-3.5 h-3.5" />
+                        <span>Editar / Enquadrar</span>
+                      </button>
+                    )}
+                    {newProduct.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setNewProduct({ ...newProduct, imageUrl: '' })}
+                        className="text-xs font-grotesk font-semibold text-[#ba1a1a] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remover Foto</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
                   {/* Pré-visualização */}
-                  <div className="sm:col-span-5 relative w-full h-44 rounded-2xl overflow-hidden border-2 border-dashed border-[#c4c8bf] bg-[#f5f3ef] flex flex-col items-center justify-center">
+                  <div className="sm:col-span-5 relative w-full h-44 rounded-2xl overflow-hidden border-2 border-dashed border-[#c4c8bf] bg-[#f5f3ef] flex flex-col items-center justify-center group">
                     {newProduct.imageUrl ? (
-                      <img
-                        src={newProduct.imageUrl}
-                        alt="Pré-visualização do produto"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src =
-                            'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
-                        }}
-                      />
+                      <>
+                        <img
+                          src={newProduct.imageUrl}
+                          alt="Pré-visualização do produto"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src =
+                              'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoEditorTarget('new');
+                            setIsPhotoEditorOpen(true);
+                          }}
+                          className="absolute inset-0 bg-black/40 hover:bg-black/60 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-2"
+                        >
+                          <Crop className="w-6 h-6 mb-1 text-white" />
+                          <span className="font-grotesk text-xs font-bold uppercase tracking-wider">Ajustar / Cortar Foto</span>
+                        </button>
+                      </>
                     ) : (
                       <label
                         htmlFor="add-product-photo-file"
@@ -1854,7 +1882,7 @@ export function AdminPage({
 
                   {/* Ações de Foto */}
                   <div className="sm:col-span-7 flex flex-col justify-center space-y-3">
-                    <div>
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         id="add-product-photo-file"
                         type="file"
@@ -1864,15 +1892,28 @@ export function AdminPage({
                       />
                       <label
                         htmlFor="add-product-photo-file"
-                        className="inline-flex items-center justify-center w-full sm:w-auto px-5 py-3 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xs transition cursor-pointer"
+                        className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xs transition cursor-pointer"
                       >
                         <Upload className="w-4 h-4 mr-2" />
                         <span>{newProduct.imageUrl ? 'Trocar Foto do Aparelho' : 'Adicionar Foto do Aparelho'}</span>
                       </label>
-                      <p className="text-[11px] text-[#747870] mt-1.5 font-manrope">
-                        Suporta fotos tiradas na câmera ou arquivos da galeria (JPG, PNG, WebP).
-                      </p>
+                      {newProduct.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoEditorTarget('new');
+                            setIsPhotoEditorOpen(true);
+                          }}
+                          className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#daeaaa] hover:bg-[#becd90] text-[#161f00] font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xs transition cursor-pointer"
+                        >
+                          <Crop className="w-4 h-4 mr-1.5" />
+                          <span>Editar Foto</span>
+                        </button>
+                      )}
                     </div>
+                    <p className="text-[11px] text-[#747870] font-manrope">
+                      Suporta fotos tiradas na câmera ou arquivos da galeria (JPG, PNG, WebP).
+                    </p>
 
                     <div className="pt-2 border-t border-[#e4e2de]/80">
                       <label className="block font-grotesk text-[11px] font-bold uppercase text-[#747870] mb-1">
@@ -2036,14 +2077,6 @@ export function AdminPage({
                   </div>
                 )}
 
-                {/* Selo de Destaque (Badge Span & Ícone) */}
-                <BadgeSelectorField
-                  badge={newProduct.badge}
-                  badgeIcon={newProduct.badgeIcon}
-                  onBadgeChange={(val) => setNewProduct((prev) => ({ ...prev, badge: val }))}
-                  onBadgeIconChange={(val) => setNewProduct((prev) => ({ ...prev, badgeIcon: val }))}
-                />
-
                 {/* Descrição dos Ingredientes / Porção */}
                 <div className="md:col-span-2">
                   <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
@@ -2119,31 +2152,60 @@ export function AdminPage({
                     <Camera className="w-4 h-4 text-[#283b26]" />
                     <span>Foto do Produto</span>
                   </label>
-                  {editingProduct.imageUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingProduct({ ...editingProduct, imageUrl: '' })}
-                      className="text-xs font-grotesk font-semibold text-[#ba1a1a] hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remover Foto</span>
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {editingProduct.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoEditorTarget('edit');
+                          setIsPhotoEditorOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#daeaaa] hover:bg-[#becd90] text-[#161f00] text-xs font-grotesk font-bold transition cursor-pointer"
+                        title="Ajustar enquadramento, zoom e rotação"
+                      >
+                        <Crop className="w-3.5 h-3.5" />
+                        <span>Editar / Enquadrar</span>
+                      </button>
+                    )}
+                    {editingProduct.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingProduct({ ...editingProduct, imageUrl: '' })}
+                        className="text-xs font-grotesk font-semibold text-[#ba1a1a] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remover Foto</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
                   {/* Pré-visualização da Foto */}
-                  <div className="sm:col-span-5 relative w-full h-44 rounded-2xl overflow-hidden border-2 border-dashed border-[#c4c8bf] bg-[#f5f3ef] flex flex-col items-center justify-center">
+                  <div className="sm:col-span-5 relative w-full h-44 rounded-2xl overflow-hidden border-2 border-dashed border-[#c4c8bf] bg-[#f5f3ef] flex flex-col items-center justify-center group">
                     {editingProduct.imageUrl ? (
-                      <img
-                        src={editingProduct.imageUrl}
-                        alt={editingProduct.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src =
-                            'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
-                        }}
-                      />
+                      <>
+                        <img
+                          src={editingProduct.imageUrl}
+                          alt={editingProduct.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src =
+                              'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoEditorTarget('edit');
+                            setIsPhotoEditorOpen(true);
+                          }}
+                          className="absolute inset-0 bg-black/40 hover:bg-black/60 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-2"
+                        >
+                          <Crop className="w-6 h-6 mb-1 text-white" />
+                          <span className="font-grotesk text-xs font-bold uppercase tracking-wider">Ajustar / Cortar Foto</span>
+                        </button>
+                      </>
                     ) : (
                       <label
                         htmlFor="edit-product-photo-file"
@@ -2160,7 +2222,7 @@ export function AdminPage({
 
                   {/* Ações de Foto */}
                   <div className="sm:col-span-7 flex flex-col justify-center space-y-3">
-                    <div>
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         id="edit-product-photo-file"
                         type="file"
@@ -2170,15 +2232,28 @@ export function AdminPage({
                       />
                       <label
                         htmlFor="edit-product-photo-file"
-                        className="inline-flex items-center justify-center w-full sm:w-auto px-5 py-3 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xs transition cursor-pointer"
+                        className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xs transition cursor-pointer"
                       >
                         <Upload className="w-4 h-4 mr-2" />
                         <span>{editingProduct.imageUrl ? 'Trocar Foto do Aparelho' : 'Adicionar Foto do Aparelho'}</span>
                       </label>
-                      <p className="text-[11px] text-[#747870] mt-1.5 font-manrope">
-                        Tire uma nova foto com a câmera ou escolha um arquivo da galeria.
-                      </p>
+                      {editingProduct.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoEditorTarget('edit');
+                            setIsPhotoEditorOpen(true);
+                          }}
+                          className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#daeaaa] hover:bg-[#becd90] text-[#161f00] font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xs transition cursor-pointer"
+                        >
+                          <Crop className="w-4 h-4 mr-1.5" />
+                          <span>Editar Foto</span>
+                        </button>
+                      )}
                     </div>
+                    <p className="text-[11px] text-[#747870] font-manrope">
+                      Tire uma nova foto com a câmera ou escolha um arquivo da galeria.
+                    </p>
 
                     <div className="pt-2 border-t border-[#e4e2de]/80">
                       <label className="block font-grotesk text-[11px] font-bold uppercase text-[#747870] mb-1">
@@ -2365,14 +2440,6 @@ export function AdminPage({
                   </label>
                 </div>
 
-                {/* Selo de Destaque (Badge Span & Ícone) */}
-                <BadgeSelectorField
-                  badge={editingProduct.badge}
-                  badgeIcon={editingProduct.badgeIcon}
-                  onBadgeChange={(val) => setEditingProduct((prev) => ({ ...prev, badge: val }))}
-                  onBadgeIconChange={(val) => setEditingProduct((prev) => ({ ...prev, badgeIcon: val }))}
-                />
-
                 {/* Descrição dos Ingredientes / Porção */}
                 <div className="md:col-span-2">
                   <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
@@ -2544,6 +2611,22 @@ export function AdminPage({
           </div>
         </div>
       )}
+
+      {/* Modal Editor de Foto do Produto */}
+      <ProductPhotoEditor
+        isOpen={isPhotoEditorOpen}
+        imageUrl={photoEditorTarget === 'edit' ? editingProduct?.imageUrl : newProduct.imageUrl}
+        onClose={() => setIsPhotoEditorOpen(false)}
+        onSave={(croppedUrl) => {
+          if (photoEditorTarget === 'edit') {
+            setEditingProduct((prev) => (prev ? { ...prev, imageUrl: croppedUrl } : null));
+          } else {
+            setNewProduct((prev) => ({ ...prev, imageUrl: croppedUrl }));
+          }
+          setIsPhotoEditorOpen(false);
+          showProductFeedback('Foto ajustada com sucesso.');
+        }}
+      />
     </div>
   );
 }

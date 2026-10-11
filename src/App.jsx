@@ -26,11 +26,14 @@ export default function App() {
     return 'menu';
   });
 
-  // Sessão de Autenticação do Lojista
+  // Sessão de Autenticação do Lojista (Suporte a Manter Conectado)
   const [adminSession, setAdminSession] = useState(() => {
     try {
-      const saved = localStorage.getItem('beach_house_admin_session');
-      return saved ? JSON.parse(saved) : null;
+      const fromSession = sessionStorage.getItem('beach_house_admin_session');
+      if (fromSession) return JSON.parse(fromSession);
+      const fromLocal = localStorage.getItem('beach_house_admin_session');
+      if (fromLocal) return JSON.parse(fromLocal);
+      return null;
     } catch {
       return null;
     }
@@ -38,6 +41,7 @@ export default function App() {
 
   const handleAdminLogout = () => {
     try {
+      sessionStorage.removeItem('beach_house_admin_session');
       localStorage.removeItem('beach_house_admin_session');
     } catch {}
     setAdminSession(null);
@@ -241,9 +245,11 @@ export default function App() {
     });
 
     // Quando uma categoria não tiver produto ela automaticamente some do cardápio!
-    const categoriesWithProducts = Array.from(categoryMap.values()).filter((cat) => {
-      return allProducts.some((p) => p.categoryId === cat.id);
-    });
+    const categoriesWithProducts = Array.from(categoryMap.values())
+      .filter((cat) => {
+        return allProducts.some((p) => p.categoryId === cat.id);
+      })
+      .sort((a, b) => (a.order || 99) - (b.order || 99));
 
     return categoriesWithProducts;
   }, [allProducts, deletedCategoryIds]);

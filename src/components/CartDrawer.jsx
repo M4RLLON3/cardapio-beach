@@ -171,7 +171,7 @@ export function CartDrawer({
                 onClick={onProceedToCheckout}
                 className="w-full bg-[#4A692D] hover:bg-[#3A5323] active:scale-[0.99] text-[#FCFAF6] font-black py-3.5 px-4 rounded-xl shadow-lg shadow-[#4A692D]/25 transition-all flex items-center justify-center gap-2 text-sm"
               >
-                <span>Avançar para Checkout</span>
+                <span>Formas de Pagamento</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 

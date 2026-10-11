@@ -47,9 +47,10 @@ export function formatPhoneInput(value) {
 export function AdminAuthView({ onLoginSuccess, onBackToMenu, onSyncStoreInfo }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   
-  // Login State
-  const [loginCnpj, setLoginCnpj] = useState('60.456.569/0001-98');
-  const [loginPassword, setLoginPassword] = useState('4774');
+  // Login State (seguro, sem dados expostos)
+  const [loginCnpj, setLoginCnpj] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [keepConnected, setKeepConnected] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -122,9 +123,15 @@ export function AdminAuthView({ onLoginSuccess, onBackToMenu, onSyncStoreInfo })
         arena: data.arena,
         status: data.status_aprovacao || 'aprovado',
         loggedAt: new Date().toISOString(),
+        keepConnected,
       };
 
-      localStorage.setItem('beach_house_admin_session', JSON.stringify(session));
+      if (keepConnected) {
+        localStorage.setItem('beach_house_admin_session', JSON.stringify(session));
+      } else {
+        localStorage.removeItem('beach_house_admin_session');
+      }
+      sessionStorage.setItem('beach_house_admin_session', JSON.stringify(session));
 
       if (onSyncStoreInfo && data.arena) {
         onSyncStoreInfo({
@@ -150,8 +157,14 @@ export function AdminAuthView({ onLoginSuccess, onBackToMenu, onSyncStoreInfo })
           status: 'aprovado',
           loggedAt: new Date().toISOString(),
           isOffline: true,
+          keepConnected,
         };
-        localStorage.setItem('beach_house_admin_session', JSON.stringify(localSession));
+        if (keepConnected) {
+          localStorage.setItem('beach_house_admin_session', JSON.stringify(localSession));
+        } else {
+          localStorage.removeItem('beach_house_admin_session');
+        }
+        sessionStorage.setItem('beach_house_admin_session', JSON.stringify(localSession));
         onLoginSuccess(localSession);
       } else {
         setLoginError('Erro de conexão com o servidor do Beach Tennis. Verifique sua internet.');
@@ -357,19 +370,22 @@ export function AdminAuthView({ onLoginSuccess, onBackToMenu, onSyncStoreInfo })
               </div>
             </div>
 
-            {/* Dica de Acesso Rápido para a Loja Oficial */}
-            <div className="p-3 bg-[#EBF2EA]/60 rounded-2xl border border-[#DEEAD8] text-[11px] text-[#2D592C] flex items-center justify-between">
-              <span className="font-medium">Loja Oficial Beach House</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginCnpj('60.456.569/0001-98');
-                  setLoginPassword('4774');
-                }}
-                className="font-bold underline text-[#315433] hover:text-[#233F25]"
-              >
-                Preencher
-              </button>
+            {/* Opção Manter Conectado */}
+            <div className="flex items-center justify-between p-3 bg-[#FAF8F3] rounded-2xl border border-[#EBE7DF]">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={keepConnected}
+                  onChange={(e) => setKeepConnected(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#315433] accent-[#315433] cursor-pointer"
+                />
+                <span className="text-xs text-[#1E2B20] font-bold">
+                  Manter conectado
+                </span>
+              </label>
+              <span className="text-[11px] text-[#6A786D]">
+                {keepConnected ? 'Salvo neste aparelho' : 'Desconecta ao fechar'}
+              </span>
             </div>
 
             {/* Botão Entrar */}

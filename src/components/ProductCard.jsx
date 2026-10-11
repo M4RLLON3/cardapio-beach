@@ -1,7 +1,6 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
-import { ProductBadgeIcon } from './ProductBadgeIcon';
 
 export function ProductCard({ product, onSelectProduct }) {
   const isAvailable = product.isAvailable !== false;
@@ -33,16 +32,6 @@ export function ProductCard({ product, onSelectProduct }) {
               'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
           }}
         />
-
-        {/* Badges superiores */}
-        {product.badge && isAvailable && (
-          <div className="absolute top-3 sm:top-3.5 left-3 sm:left-3.5">
-            <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-[#daeaaa] text-[#161f00] font-grotesk text-[10px] sm:text-[11px] uppercase tracking-widest font-bold rounded-lg shadow-xs backdrop-blur-sm">
-              <ProductBadgeIcon iconKey={product.badgeIcon} className="w-3.5 h-3.5 stroke-[#161f00]" />
-              <span>{product.badge}</span>
-            </span>
-          </div>
-        )}
 
         {!isAvailable && (
           <div className="absolute top-3 sm:top-3.5 left-3 sm:left-3.5">
@@ -80,12 +69,7 @@ export function ProductCard({ product, onSelectProduct }) {
         </div>
 
         {/* Rodapé do Card com Ação */}
-        <div className="pt-2.5 sm:pt-3 border-t border-[#f5f3ef] flex items-center justify-between">
-          <span className="font-grotesk text-xs uppercase tracking-wider text-[#747870] flex items-center gap-1.5 truncate max-w-[55%]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#566431] flex-shrink-0" />
-            <span className="truncate">{product.categoryName || 'Artesanal'}</span>
-          </span>
-
+        <div className="pt-2.5 sm:pt-3 border-t border-[#f5f3ef] flex items-center justify-end">
           {isAvailable ? (
             <button
               type="button"

@@ -11,15 +11,17 @@ export const INITIAL_STORE_CONFIG = {
 };
 
 export const CATEGORIES = [
-  { id: "porcoes", name: "Porções", iconName: "Utensils", order: 1 },
-  { id: "combos", name: "Casal & Família", iconName: "Users", order: 2 },
-  { id: "combinacoes", name: "Combinações", iconName: "Sparkles", order: 3 },
-  { id: "pizzas", name: "Pizzas", iconName: "Pizza", order: 4 },
-  { id: "cervejas", name: "Cervejas", iconName: "Beer", order: 5 },
-  { id: "coqueteis", name: "Coquetéis & Ice", iconName: "Wine", order: 6 },
-  { id: "bebidas", name: "Refrigerantes & Sucos", iconName: "Coffee", order: 7 },
-  { id: "energeticos", name: "Energéticos & Isotônicos", iconName: "Zap", order: 8 },
-  { id: "destilados", name: "Destilados & Doses", iconName: "GlassWater", order: 9 },
+  { id: "promocoes", name: "Promoções", iconName: "Tag", order: 1 },
+  { id: "novidades", name: "Novidades", iconName: "Sparkles", order: 2 },
+  { id: "porcoes", name: "Porções", iconName: "Utensils", order: 3 },
+  { id: "combos", name: "Casal & Família", iconName: "Users", order: 4 },
+  { id: "combinacoes", name: "Combinações", iconName: "Sparkles", order: 5 },
+  { id: "pizzas", name: "Pizzas", iconName: "Pizza", order: 6 },
+  { id: "cervejas", name: "Cervejas", iconName: "Beer", order: 7 },
+  { id: "coqueteis", name: "Coquetéis & Ice", iconName: "Wine", order: 8 },
+  { id: "bebidas", name: "Refrigerantes & Sucos", iconName: "Coffee", order: 9 },
+  { id: "energeticos", name: "Energéticos & Isotônicos", iconName: "Zap", order: 10 },
+  { id: "destilados", name: "Destilados & Doses", iconName: "GlassWater", order: 11 },
 ];
 
 export const PRODUCTS = [

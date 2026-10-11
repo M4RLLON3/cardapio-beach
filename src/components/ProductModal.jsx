@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Minus, ShoppingBag } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
-import { ProductBadgeIcon } from './ProductBadgeIcon';
 
 export function ProductModal({ product, isOpen, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
@@ -77,14 +76,6 @@ export function ProductModal({ product, isOpen, onClose, onAddToCart }) {
         {/* Conteúdo com rolagem */}
         <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1 font-manrope">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              {product.badge && (
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-lg bg-[#daeaaa] text-[#161f00] font-grotesk uppercase tracking-wider">
-                  <ProductBadgeIcon iconKey={product.badgeIcon} className="w-3.5 h-3.5 stroke-[#161f00]" />
-                  <span>{product.badge}</span>
-                </span>
-              )}
-            </div>
             <h2 className="text-xl sm:text-2xl font-bold font-grotesk text-[#132512] leading-tight">
               {product.name}
             </h2>
