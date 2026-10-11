@@ -33,6 +33,11 @@ import {
   Upload,
   Camera,
   Image as ImageIcon,
+  Volume2,
+  VolumeX,
+  Bell,
+  BellRing,
+  Play,
 } from 'lucide-react';
 import {
   formatCurrency,
@@ -47,6 +52,14 @@ import {
 } from '../data/storeData';
 import { ProductBadgeIcon, BADGE_ICONS } from '../components/ProductBadgeIcon';
 import { BadgeSelectorField } from '../components/BadgeSelectorField';
+import {
+  playOrderNotificationSound,
+  isOrderSoundEnabled,
+  setOrderSoundEnabled,
+  requestNotificationPermission,
+  showOrderDesktopNotification,
+  subscribeToNewOrders,
+} from '../utils/orderNotification';
 
 const compressImageFile = (file, maxWidth = 900, maxHeight = 900, quality = 0.8) => {
   return new Promise((resolve, reject) => {
@@ -199,6 +212,89 @@ export function AdminPage({
   const [orderFilter, setOrderFilter] = useState('all'); // 'all' | 'pendente' | 'em_preparo' | 'entregue'
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [productFeedback, setProductFeedback] = useState(null);
+
+  // ── Notificações Sonoras e Desktop de Novos Pedidos ──
+  const [soundEnabled, setSoundEnabled] = useState(() => isOrderSoundEnabled());
+  const [desktopPermission, setDesktopPermission] = useState(() => {
+    return typeof window !== 'undefined' && 'Notification' in window
+      ? Notification.permission
+      : 'unsupported';
+  });
+  const [newOrderAlert, setNewOrderAlert] = useState(null);
+  const [soundTestSuccess, setSoundTestSuccess] = useState(false);
+
+  // Armazena os IDs dos pedidos já conhecidos para evitar tocar som em pedidos antigos
+  const knownOrderIdsRef = useRef(new Set((orders || []).map((o) => o.id)));
+
+  // Detecta quando um novo pedido entra na lista 'orders' com status 'pendente'
+  useEffect(() => {
+    const currentOrders = orders || [];
+    const newPendingOrders = currentOrders.filter(
+      (o) => !knownOrderIdsRef.current.has(o.id) && o.status === 'pendente'
+    );
+
+    if (newPendingOrders.length > 0) {
+      const latestOrder = newPendingOrders[0];
+      playOrderNotificationSound();
+      showOrderDesktopNotification(latestOrder);
+      setNewOrderAlert(latestOrder);
+    }
+
+    currentOrders.forEach((o) => knownOrderIdsRef.current.add(o.id));
+  }, [orders]);
+
+  // Escuta o canal de transmissão em tempo real (mesma aba ou abas sincronizadas)
+  useEffect(() => {
+    const unsubscribe = subscribeToNewOrders((incomingOrder) => {
+      if (!knownOrderIdsRef.current.has(incomingOrder.id)) {
+        knownOrderIdsRef.current.add(incomingOrder.id);
+        playOrderNotificationSound();
+        showOrderDesktopNotification(incomingOrder);
+        setNewOrderAlert(incomingOrder);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleToggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    setOrderSoundEnabled(next);
+    if (next) {
+      playOrderNotificationSound();
+      showProductFeedback('Aviso sonoro no computador ativado.');
+    } else {
+      showProductFeedback('Aviso sonoro no computador silenciado.');
+    }
+  };
+
+  const handleTestSound = async () => {
+    playOrderNotificationSound();
+    setSoundTestSuccess(true);
+    setTimeout(() => setSoundTestSuccess(false), 3000);
+    showProductFeedback('Campainha tocada no computador com sucesso.');
+
+    if (desktopPermission === 'default') {
+      const granted = await requestNotificationPermission();
+      setDesktopPermission(granted ? 'granted' : 'denied');
+    }
+  };
+
+  const handleRequestDesktopPermission = async () => {
+    const granted = await requestNotificationPermission();
+    setDesktopPermission(granted ? 'granted' : 'denied');
+    if (granted) {
+      showOrderDesktopNotification({
+        id: 'TESTE',
+        customerName: 'Cliente Teste',
+        total: 50.0,
+        items: [{ name: 'Porção Teste' }],
+      });
+      showProductFeedback('Notificações no computador ativadas com sucesso.');
+    } else {
+      alert('Permissão de notificação não foi concedida. Verifique as configurações de site do navegador.');
+    }
+  };
 
   // Filtro e Busca de Produtos
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
@@ -747,6 +843,37 @@ export function AdminPage({
               <span className="font-semibold">{formatCNPJ(adminSession?.arena?.cnpj || '60456569000198')}</span>
             </div>
 
+            {/* Controle de Som da Notificação */}
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <button
+                type="button"
+                onClick={handleToggleSound}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-grotesk font-semibold transition shadow-xs cursor-pointer ${
+                  soundEnabled
+                    ? 'bg-[#daeaaa] text-[#161f00] border border-[#becd90] hover:bg-[#d0e29b]'
+                    : 'bg-white text-[#747870] border border-[#c4c8bf] hover:bg-[#efeeea]'
+                }`}
+                title={soundEnabled ? 'Aviso sonoro no computador ativado (Clique para mutar)' : 'Aviso sonoro no computador silenciado (Clique para ativar)'}
+              >
+                {soundEnabled ? (
+                  <Volume2 className="w-3.5 h-3.5 text-[#161f00]" />
+                ) : (
+                  <VolumeX className="w-3.5 h-3.5 text-[#747870]" />
+                )}
+                <span className="hidden sm:inline">{soundEnabled ? 'Som Ativo' : 'Som Mudo'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestSound}
+                className="hidden xl:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white hover:bg-[#efeeea] border border-[#c4c8bf] text-[11px] font-grotesk font-semibold text-[#132512] transition shadow-xs cursor-pointer"
+                title="Tocar campainha de teste para verificar as caixas de som do computador"
+              >
+                <Bell className="w-3 h-3 text-[#283b26]" />
+                <span>Testar Som</span>
+              </button>
+            </div>
+
             {/* Ver Cardápio */}
             <button
               type="button"
@@ -813,6 +940,61 @@ export function AdminPage({
           </button>
         </div>
       </header>
+
+      {/* ── Toast Flutuante de Novo Pedido no Computador ── */}
+      {newOrderAlert && (
+        <div className="fixed top-24 right-4 sm:right-6 z-50 max-w-sm w-full bg-[#132512] text-white p-4 rounded-2xl shadow-2xl border border-[#daeaaa]/30 animate-in slide-in-from-top-4 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-xl bg-[#daeaaa] text-[#161f00] shrink-0">
+              <BellRing className="w-5 h-5 stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-grotesk text-[10px] uppercase tracking-widest font-bold text-[#daeaaa]">
+                  Novo Pedido Recebido!
+                </span>
+                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-mono">
+                  #{newOrderAlert.id?.slice(-4)}
+                </span>
+              </div>
+              <h4 className="font-grotesk text-sm font-bold text-white mt-0.5">
+                {newOrderAlert.customerName}
+              </h4>
+              <p className="font-manrope text-xs text-white/80 mt-0.5">
+                {newOrderAlert.items?.length || 1} itens • Total: {formatCurrency(newOrderAlert.total)}
+              </p>
+              <div className="flex items-center gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('orders');
+                    setOrderFilter('all');
+                    setNewOrderAlert(null);
+                  }}
+                  className="text-xs font-grotesk font-bold underline text-[#daeaaa] hover:text-white cursor-pointer"
+                >
+                  Abrir Pedidos
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTestSound}
+                  className="text-[11px] font-grotesk text-white/70 hover:text-white underline cursor-pointer"
+                >
+                  Tocar Som
+                </button>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNewOrderAlert(null)}
+            className="text-white/60 hover:text-white p-1 rounded-lg cursor-pointer shrink-0"
+            title="Fechar aviso"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* ── BEGIN: Conteúdo Principal com Top Ambient Glow ── */}
       <main className="w-full pt-28 md:pt-24 min-h-screen relative overflow-hidden pb-24">
@@ -1214,6 +1396,66 @@ export function AdminPage({
                   <span className="font-grotesk text-2xl font-bold text-[#132512] mt-1 block">
                     {completedOrdersList.length}
                   </span>
+                </div>
+              </div>
+
+              {/* Barra de Notificação Sonora & Desktop no Computador */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#efeeea] shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className={`p-3 rounded-2xl ${soundEnabled ? 'bg-[#daeaaa] text-[#161f00]' : 'bg-[#f5f3ef] text-[#747870]'}`}>
+                    {soundEnabled ? <Volume2 className="w-5 h-5 stroke-[2.2]" /> : <VolumeX className="w-5 h-5 stroke-[2.2]" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-grotesk text-sm sm:text-base font-bold text-[#132512]">
+                        Aviso Sonoro de Pedidos no Computador
+                      </h3>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-grotesk font-bold uppercase tracking-wider ${
+                        soundEnabled ? 'bg-[#daeaaa] text-[#161f00]' : 'bg-[#f5f3ef] text-[#747870]'
+                      }`}>
+                        {soundEnabled ? 'Ativo' : 'Silenciado'}
+                      </span>
+                    </div>
+                    <p className="font-manrope text-xs text-[#747870] mt-0.5">
+                      Toca o sino de notificação automaticamente nas caixas de som do computador a cada novo pedido recebido.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
+                  <button
+                    type="button"
+                    onClick={handleTestSound}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#f5f3ef] hover:bg-[#eae8e4] text-[#132512] border border-[#e4e2de] text-xs font-grotesk font-bold transition cursor-pointer"
+                    title="Reproduzir o toque sonoro do computador agora"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current text-[#283b26]" />
+                    <span>{soundTestSuccess ? 'Tocando Som...' : 'Testar Som'}</span>
+                  </button>
+
+                  {desktopPermission !== 'granted' && (
+                    <button
+                      type="button"
+                      onClick={handleRequestDesktopPermission}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white text-xs font-grotesk font-bold transition cursor-pointer shadow-xs"
+                      title="Ativar pop-up de notificação nativa do Windows"
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      <span>Ativar Notificações no Windows</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleToggleSound}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-grotesk font-bold transition cursor-pointer border ${
+                      soundEnabled
+                        ? 'border-[#c4c8bf] bg-white text-[#747870] hover:text-[#132512]'
+                        : 'border-[#283b26] bg-[#283b26] text-white shadow-xs'
+                    }`}
+                  >
+                    {soundEnabled ? 'Silenciar' : 'Ativar Som'}
+                  </button>
                 </div>
               </div>
 

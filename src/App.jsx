@@ -11,6 +11,7 @@ import { OrderSuccessModal } from './components/OrderSuccessModal';
 import { FloatingCartButton } from './components/FloatingCartButton';
 import { AdminPage } from './pages/AdminPage';
 import { AdminAuthView } from './components/AdminAuthView';
+import { broadcastNewOrder, unlockAudioOnFirstInteraction } from './utils/orderNotification';
 
 const STORE_CONFIG_STORAGE_KEY = 'beach_house_store_config_v1';
 const PRODUCTS_STORAGE_KEY = 'beach_house_products_catalog_v2';
@@ -52,6 +53,8 @@ export default function App() {
         setCurrentPage('menu');
       }
     };
+
+    unlockAudioOnFirstInteraction();
 
     window.addEventListener('hashchange', handleNavigation);
     window.addEventListener('popstate', handleNavigation);
@@ -313,6 +316,7 @@ export default function App() {
   const handleOrderSubmitted = (orderData) => {
     const updated = [orderData, ...orders];
     updateOrders(updated);
+    broadcastNewOrder(orderData);
     clearCart();
     setIsCheckoutOpen(false);
     setIsCartOpen(false);
