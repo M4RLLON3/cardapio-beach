@@ -1,0 +1,21 @@
+# Dependências
+node_modules/
+
+# Builds, deploy e caches
+dist/
+.wrangler/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Configurações do ambiente e segredos
+.env
+.env.local
+
+# IDE e Sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
