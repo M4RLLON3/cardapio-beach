@@ -45,6 +45,8 @@ import { formatCNPJ } from '../components/AdminAuthView';
 import {
   CATEGORIES as DEFAULT_CATEGORIES,
 } from '../data/storeData';
+import { ProductBadgeIcon, BADGE_ICONS } from '../components/ProductBadgeIcon';
+import { BadgeSelectorField } from '../components/BadgeSelectorField';
 
 const compressImageFile = (file, maxWidth = 900, maxHeight = 900, quality = 0.8) => {
   return new Promise((resolve, reject) => {
@@ -224,6 +226,8 @@ export function AdminPage({
     price: '',
     description: '',
     imageUrl: '',
+    badge: '',
+    badgeIcon: '',
     isAvailable: true,
     hasOptions: false,
     options: [
@@ -417,6 +421,8 @@ export function AdminPage({
       ...product,
       isCustomCategory: isCustomCat,
       customCategoryName: isCustomCat ? (product.categoryName || product.categoryId) : '',
+      badge: product.badge || '',
+      badgeIcon: product.badgeIcon || '',
       hasOptions: hasOpts || isDest,
       options: initialOptions,
       price: String(product.price),
@@ -473,6 +479,8 @@ export function AdminPage({
           price: finalPrice,
           description: editingProduct.description.trim(),
           imageUrl: editingProduct.imageUrl.trim() || p.imageUrl,
+          badge: editingProduct.badge?.trim() || undefined,
+          badgeIcon: editingProduct.badge?.trim() ? (editingProduct.badgeIcon || undefined) : undefined,
           isAvailable: editingProduct.isAvailable,
           options: parsedOptions,
         };
@@ -547,6 +555,8 @@ export function AdminPage({
       description: newProduct.description.trim() || 'Sem descrição informada.',
       price: finalPrice,
       imageUrl: finalImage,
+      badge: newProduct.badge?.trim() || undefined,
+      badgeIcon: newProduct.badge?.trim() ? (newProduct.badgeIcon || undefined) : undefined,
       isAvailable: true,
       options: parsedOptions,
     };
@@ -561,6 +571,8 @@ export function AdminPage({
       price: '',
       description: '',
       imageUrl: '',
+      badge: '',
+      badgeIcon: '',
       isAvailable: true,
       hasOptions: false,
       options: [
@@ -1029,8 +1041,9 @@ export function AdminPage({
                           {/* Badge de Destaque ou Categoria */}
                           <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
                             {product.badge && (
-                              <span className="px-2.5 py-1 bg-[#daeaaa] text-[#161f00] font-grotesk text-[10px] font-bold uppercase tracking-widest rounded-lg backdrop-blur-sm shadow-2xs">
-                                {product.badge}
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#daeaaa] text-[#161f00] font-grotesk text-[10px] font-bold uppercase tracking-widest rounded-lg backdrop-blur-sm shadow-2xs">
+                                <ProductBadgeIcon iconKey={product.badgeIcon} className="w-3.5 h-3.5 stroke-[#161f00]" />
+                                <span>{product.badge}</span>
                               </span>
                             )}
                             <span className="px-2 py-0.5 bg-black/60 text-white font-grotesk text-[10px] uppercase tracking-wider rounded-md backdrop-blur-sm">
@@ -1781,6 +1794,14 @@ export function AdminPage({
                   </div>
                 )}
 
+                {/* Selo de Destaque (Badge Span & Ícone) */}
+                <BadgeSelectorField
+                  badge={newProduct.badge}
+                  badgeIcon={newProduct.badgeIcon}
+                  onBadgeChange={(val) => setNewProduct((prev) => ({ ...prev, badge: val }))}
+                  onBadgeIconChange={(val) => setNewProduct((prev) => ({ ...prev, badgeIcon: val }))}
+                />
+
                 {/* Descrição dos Ingredientes / Porção */}
                 <div className="md:col-span-2">
                   <label className="block font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] mb-1.5">
@@ -2101,6 +2122,14 @@ export function AdminPage({
                     </div>
                   </label>
                 </div>
+
+                {/* Selo de Destaque (Badge Span & Ícone) */}
+                <BadgeSelectorField
+                  badge={editingProduct.badge}
+                  badgeIcon={editingProduct.badgeIcon}
+                  onBadgeChange={(val) => setEditingProduct((prev) => ({ ...prev, badge: val }))}
+                  onBadgeIconChange={(val) => setEditingProduct((prev) => ({ ...prev, badgeIcon: val }))}
+                />
 
                 {/* Descrição dos Ingredientes / Porção */}
                 <div className="md:col-span-2">

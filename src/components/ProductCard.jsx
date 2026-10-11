@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
+import { ProductBadgeIcon } from './ProductBadgeIcon';
 
 export function ProductCard({ product, onSelectProduct }) {
   const isAvailable = product.isAvailable !== false;
@@ -36,8 +37,9 @@ export function ProductCard({ product, onSelectProduct }) {
         {/* Badges superiores */}
         {product.badge && isAvailable && (
           <div className="absolute top-3 sm:top-3.5 left-3 sm:left-3.5">
-            <span className="px-2.5 sm:px-3 py-1 bg-[#daeaaa] text-[#161f00] font-grotesk text-[10px] sm:text-[11px] uppercase tracking-widest font-bold rounded-lg shadow-xs backdrop-blur-sm">
-              {product.badge}
+            <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-[#daeaaa] text-[#161f00] font-grotesk text-[10px] sm:text-[11px] uppercase tracking-widest font-bold rounded-lg shadow-xs backdrop-blur-sm">
+              <ProductBadgeIcon iconKey={product.badgeIcon} className="w-3.5 h-3.5 stroke-[#161f00]" />
+              <span>{product.badge}</span>
             </span>
           </div>
         )}

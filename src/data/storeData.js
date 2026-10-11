@@ -51,6 +51,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1585109649139-366815a0d713?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Mais Pedido",
+    badgeIcon: "coracao",
   },
   {
     id: "porcao-calabresa",
@@ -70,6 +71,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Favorito",
+    badgeIcon: "coracao",
   },
   {
     id: "porcao-tilapia",
@@ -79,7 +81,8 @@ export const PRODUCTS = [
     price: 45.00,
     imageUrl: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
-    badge: "Especial",
+    badge: "Especial Beach",
+    badgeIcon: "raquete",
   },
   {
     id: "porcao-torresmo",
@@ -135,6 +138,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Novidade",
+    badgeIcon: "porcao",
   },
 
   // ── 2. CASAL & FAMÍLIA (COMBOS) ─────────────────────────
@@ -147,6 +151,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Combo Especial",
+    badgeIcon: "raquete",
   },
   {
     id: "combo-casal-beach",
@@ -157,6 +162,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Mais Pedido",
+    badgeIcon: "coracao",
   },
   {
     id: "combo-familia-beach",
@@ -166,7 +172,8 @@ export const PRODUCTS = [
     price: 150.00,
     imageUrl: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
-    badge: "Família",
+    badge: "Família Beach",
+    badgeIcon: "pessoas",
   },
 
   // ── 3. COMBINAÇÕES ──────────────────────────────────────
@@ -197,6 +204,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Campeão",
+    badgeIcon: "arena",
   },
 
   // ── 4. PIZZAS (MASSA NAPOLITANA) ────────────────────────
@@ -227,6 +235,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Destaque",
+    badgeIcon: "coracao",
   },
   {
     id: "pizza-tarantela",
@@ -246,6 +255,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Gourmet",
+    badgeIcon: "relogio",
   },
   {
     id: "pizza-bacon-milho",
@@ -274,6 +284,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Doce",
+    badgeIcon: "coracao",
   },
 
   // ── 5. CERVEJAS ─────────────────────────────────────────
@@ -322,6 +333,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1618886614638-80e3c15cd819?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Puro Malte",
+    badgeIcon: "coracao",
   },
   {
     id: "cerv-eisenbahn-600",
@@ -350,6 +362,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1584225064785-c62a8b43d148?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Praia",
+    badgeIcon: "arena",
   },
   {
     id: "cerv-sol-longneck",
@@ -436,6 +449,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1556881286-fc6915169721?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Quadra",
+    badgeIcon: "raquete",
   },
   {
     id: "iso-powerade",
@@ -446,6 +460,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1556881286-fc6915169721?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "Quadra",
+    badgeIcon: "raquete",
   },
   {
     id: "energ-redbull",
@@ -584,6 +599,7 @@ export const PRODUCTS = [
     imageUrl: "https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=600&q=80",
     isAvailable: true,
     badge: "100% Natural",
+    badgeIcon: "folha",
   },
   {
     id: "suco-prats-300",
