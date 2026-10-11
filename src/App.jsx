@@ -127,10 +127,35 @@ export default function App() {
     }
   };
 
+  const DELETED_CATEGORIES_KEY = 'beach_house_deleted_categories_v1';
+  const [deletedCategoryIds, setDeletedCategoryIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DELETED_CATEGORIES_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleDeleteCategory = (categoryId) => {
+    const nextDeleted = [...new Set([...deletedCategoryIds, categoryId])];
+    setDeletedCategoryIds(nextDeleted);
+    try {
+      localStorage.setItem(DELETED_CATEGORIES_KEY, JSON.stringify(nextDeleted));
+    } catch (e) {
+      console.error(e);
+    }
+    // Remove produtos pertencentes à categoria excluída
+    const remainingProducts = allProducts.filter((p) => p.categoryId !== categoryId);
+    updateProducts(remainingProducts);
+  };
+
   const resetProductsToOfficialMenu = () => {
     setAllProducts(PRODUCTS);
+    setDeletedCategoryIds([]);
     try {
       localStorage.removeItem('beach_house_products_catalog_v1');
+      localStorage.removeItem(DELETED_CATEGORIES_KEY);
       localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(PRODUCTS));
     } catch (e) {
       console.error(e);
@@ -193,13 +218,21 @@ export default function App() {
   // Busca e Filtros
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Agrupamento Dinâmico de Categorias para suportar grupos personalizados
+  // Agrupamento Dinâmico de Categorias para suportar grupos personalizados (filtrando categorias excluídas)
   const dynamicCategories = useMemo(() => {
     const categoryMap = new Map();
-    CATEGORIES.forEach((cat) => categoryMap.set(cat.id, cat));
+    CATEGORIES.forEach((cat) => {
+      if (!deletedCategoryIds.includes(cat.id)) {
+        categoryMap.set(cat.id, cat);
+      }
+    });
 
     allProducts.forEach((prod) => {
-      if (prod.categoryId && !categoryMap.has(prod.categoryId)) {
+      if (
+        prod.categoryId &&
+        !deletedCategoryIds.includes(prod.categoryId) &&
+        !categoryMap.has(prod.categoryId)
+      ) {
         categoryMap.set(prod.categoryId, {
           id: prod.categoryId,
           name: prod.categoryName || prod.categoryId.charAt(0).toUpperCase() + prod.categoryId.slice(1),
@@ -210,9 +243,22 @@ export default function App() {
     });
 
     return Array.from(categoryMap.values());
-  }, [allProducts]);
+  }, [allProducts, deletedCategoryIds]);
 
-  const [activeCategory, setActiveCategory] = useState(() => dynamicCategories[0]?.id || 'petiscos');
+  const [activeCategory, setActiveCategory] = useState(() => dynamicCategories[0]?.id || 'porcoes');
+
+  // Refs e efeito para centralizar a categoria selecionada no scroll lateral
+  const categoryTabRefs = React.useRef({});
+
+  useEffect(() => {
+    if (activeCategory && categoryTabRefs.current[activeCategory]) {
+      categoryTabRefs.current[activeCategory].scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [activeCategory]);
 
   // Filtragem de produtos pela busca
   const filteredProducts = useMemo(() => {
@@ -233,12 +279,19 @@ export default function App() {
     })).filter((cat) => cat.products.length > 0);
   }, [filteredProducts, dynamicCategories]);
 
-  // Rolagem suave para a categoria selecionada
+  // Rolagem suave para a categoria selecionada e centralização da aba
   const handleSelectCategory = (categoryId) => {
     setActiveCategory(categoryId);
+    if (categoryTabRefs.current[categoryId]) {
+      categoryTabRefs.current[categoryId].scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
     const element = document.getElementById(`category-${categoryId}`);
     if (element) {
-      const yOffset = -70;
+      const yOffset = -130;
       const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: 'smooth' });
     }
@@ -289,8 +342,10 @@ export default function App() {
         onUpdateStoreInfo={updateStoreInfo}
         onResetStoreInfo={resetStoreInfo}
         products={allProducts}
+        categories={dynamicCategories}
         onUpdateProducts={updateProducts}
         onResetToOfficialMenu={resetProductsToOfficialMenu}
+        onDeleteCategory={handleDeleteCategory}
         orders={orders}
         onUpdateOrders={updateOrders}
         onBackToMenu={navigateToMenu}
@@ -319,6 +374,7 @@ export default function App() {
               return (
                 <button
                   key={cat.id}
+                  ref={(el) => (categoryTabRefs.current[cat.id] = el)}
                   onClick={() => handleSelectCategory(cat.id)}
                   className="group relative px-3 sm:px-4 py-2 text-left whitespace-nowrap transition-all duration-200 flex-shrink-0 cursor-pointer"
                   type="button"

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Settings,
   Phone,
@@ -175,8 +175,10 @@ export function AdminPage({
   onUpdateStoreInfo,
   onResetStoreInfo,
   products,
+  categories,
   onUpdateProducts,
   onResetToOfficialMenu,
+  onDeleteCategory,
   orders = [],
   onUpdateOrders,
   onBackToMenu,
@@ -202,6 +204,19 @@ export function AdminPage({
   // Filtro e Busca de Produtos
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
   const [productSearchQuery, setProductSearchQuery] = useState('');
+
+  // Refs para centralização horizontal da aba de categorias ativa no Admin
+  const adminCategoryTabRefs = useRef({});
+
+  useEffect(() => {
+    if (productCategoryFilter && adminCategoryTabRefs.current[productCategoryFilter]) {
+      adminCategoryTabRefs.current[productCategoryFilter].scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [productCategoryFilter]);
 
   // Modal para Adicionar Novo Produto
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
@@ -293,6 +308,22 @@ export function AdminPage({
     if (!onUpdateOrders) return;
     const updated = orders.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o));
     onUpdateOrders(updated);
+  };
+
+  // Pedidos: Excluir Pedido
+  const handleDeleteOrder = (orderId, customerName) => {
+    const label = orderId ? `#${String(orderId).slice(-6)}` : '';
+    if (
+      window.confirm(
+        `Tem certeza que deseja excluir o pedido ${label} de "${customerName || 'Cliente'}"? Esta ação não pode ser desfeita.`
+      )
+    ) {
+      if (onUpdateOrders) {
+        const updated = orders.filter((o) => o.id !== orderId);
+        onUpdateOrders(updated);
+        showProductFeedback('Pedido excluído com sucesso.');
+      }
+    }
   };
 
   // Alternar Disponibilidade de Produto
@@ -445,9 +476,9 @@ export function AdminPage({
     return found ? found.name : catId;
   };
 
-  // Categorias disponíveis para o filtro de produtos
+  // Categorias disponíveis para o filtro de produtos (excluindo as que foram deletadas)
   const availableCategoriesForFilter = useMemo(() => {
-    const list = [...DEFAULT_CATEGORIES];
+    const list = [...(categories || DEFAULT_CATEGORIES)];
     products.forEach((p) => {
       if (p.categoryId && !list.some((c) => c.id === p.categoryId)) {
         list.push({
@@ -457,7 +488,29 @@ export function AdminPage({
       }
     });
     return list;
-  }, [products]);
+  }, [categories, products]);
+
+  // Excluir Categoria Completa
+  const handleDeleteCategoryPrompt = (categoryId) => {
+    const category = availableCategoriesForFilter.find((c) => c.id === categoryId);
+    const catName = category ? category.name : categoryId;
+    const countInCat = products.filter((p) => p.categoryId === categoryId).length;
+    const confirmMessage =
+      countInCat > 0
+        ? `Tem certeza que deseja excluir a categoria "${catName}" e seus ${countInCat} produto(s)? Esta ação não pode ser desfeita.`
+        : `Tem certeza que deseja excluir a categoria "${catName}"?`;
+
+    if (window.confirm(confirmMessage)) {
+      if (onDeleteCategory) {
+        onDeleteCategory(categoryId);
+      } else {
+        const updated = products.filter((p) => p.categoryId !== categoryId);
+        onUpdateProducts(updated);
+      }
+      setProductCategoryFilter('all');
+      showProductFeedback(`Categoria "${catName}" excluída com sucesso.`);
+    }
+  };
 
   // Filtragem dinâmica de produtos
   const filteredAdminProducts = useMemo(() => {
@@ -647,51 +700,31 @@ export function AdminPage({
             </div>
           )}
 
-          {/* Editorial Header Ribbon */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 pt-2 border-b border-[#efeeea]">
-            <div>
-              <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#747870] block">
-                Painel Administrativo da Arena
-              </span>
-              <h1 className="font-grotesk text-2xl sm:text-3xl font-semibold text-[#132512] tracking-tight mt-0.5">
-                {adminSession?.arena?.nome || storeInfo.name}
-              </h1>
-            </div>
-
-            {/* Metadata Ribbon */}
-            <div className="flex flex-wrap items-center gap-3 py-2 px-3.5 rounded-xl bg-[#f5f3ef]/80 backdrop-blur-sm border border-[#e4e2de] text-xs font-grotesk">
-              <div className="flex items-center gap-1.5 text-[#132512]">
-                <Clock className="w-4 h-4 text-[#283b26]" />
-                <span>Preparo {storeInfo.estimatedTime || '~30 min'}</span>
-              </div>
-              <span className="text-[#c4c8bf]">•</span>
-              <div className="flex items-center gap-1.5 text-[#132512]">
-                <Store className="w-4 h-4 text-[#283b26]" />
-                <span>Arena Beach & Lounges</span>
-              </div>
-              <span className="text-[#c4c8bf]">•</span>
-              <div className="flex items-center gap-1.5 text-[#566431]">
-                <span className="w-2 h-2 rounded-full bg-[#566431] animate-pulse"></span>
-                <span>Aberto até 23h30</span>
-              </div>
-            </div>
-          </div>
-
           {/* ══════════════════════════════════════════════════════════
               ABA 1: CATÁLOGO DE PRODUTOS
           ══════════════════════════════════════════════════════════ */}
           {activeTab === 'products' && (
-            <div className="pt-6">
+            <div className="pt-2 sm:pt-4">
               {/* Barra de Filtros, Categorias e Ações */}
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6">
-                {/* Categorias Estilo Editorial com Sublinhado Ativo */}
+                {/* Categorias Estilo Editorial com Sublinhado Ativo e Auto-centralização */}
                 <nav
                   aria-label="Categorias do Cardápio"
-                  className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar"
+                  className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 >
                   <button
                     type="button"
-                    onClick={() => setProductCategoryFilter('all')}
+                    ref={(el) => (adminCategoryTabRefs.current['all'] = el)}
+                    onClick={() => {
+                      setProductCategoryFilter('all');
+                      if (adminCategoryTabRefs.current['all']) {
+                        adminCategoryTabRefs.current['all'].scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'nearest',
+                          inline: 'center',
+                        });
+                      }
+                    }}
                     className="group relative px-3 py-1.5 text-left transition-all duration-200 cursor-pointer shrink-0"
                   >
                     <span
@@ -712,25 +745,52 @@ export function AdminPage({
                     const isSelected = productCategoryFilter === cat.id;
                     const countInCat = products.filter((p) => p.categoryId === cat.id).length;
                     return (
-                      <button
+                      <div
                         key={cat.id}
-                        type="button"
-                        onClick={() => setProductCategoryFilter(cat.id)}
-                        className="group relative px-3 py-1.5 text-left transition-all duration-200 cursor-pointer shrink-0"
+                        ref={(el) => (adminCategoryTabRefs.current[cat.id] = el)}
+                        className="flex items-center shrink-0 group relative"
                       >
-                        <span
-                          className={`font-grotesk text-xs uppercase tracking-wider transition-colors ${
-                            isSelected
-                              ? 'text-[#132512] font-bold'
-                              : 'text-[#434841] hover:text-[#132512]'
-                          }`}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProductCategoryFilter(cat.id);
+                            if (adminCategoryTabRefs.current[cat.id]) {
+                              adminCategoryTabRefs.current[cat.id].scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'nearest',
+                                inline: 'center',
+                              });
+                            }
+                          }}
+                          className="px-3 py-1.5 text-left transition-all duration-200 cursor-pointer"
                         >
-                          {cat.name} ({countInCat})
-                        </span>
+                          <span
+                            className={`font-grotesk text-xs uppercase tracking-wider transition-colors ${
+                              isSelected
+                                ? 'text-[#132512] font-bold'
+                                : 'text-[#434841] hover:text-[#132512]'
+                            }`}
+                          >
+                            {cat.name} ({countInCat})
+                          </span>
+                          {isSelected && (
+                            <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#132512] rounded-full"></span>
+                          )}
+                        </button>
                         {isSelected && (
-                          <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#132512] rounded-full"></span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCategoryPrompt(cat.id);
+                            }}
+                            className="p-1 -ml-1 mr-1 text-[#747870] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/50 rounded-md transition cursor-pointer"
+                            title={`Excluir categoria ${cat.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </nav>
@@ -757,6 +817,19 @@ export function AdminPage({
                       </button>
                     )}
                   </div>
+
+                  {/* Botão Excluir Categoria Selecionada */}
+                  {productCategoryFilter !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCategoryPrompt(productCategoryFilter)}
+                      className="inline-flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-grotesk uppercase tracking-wider font-semibold px-3 py-2 rounded-xl transition cursor-pointer shadow-2xs"
+                      title="Excluir esta categoria e seus produtos"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Excluir Categoria</span>
+                    </button>
+                  )}
 
                   {/* Botão Restaurar 81 Itens Oficiais */}
                   <button
@@ -1084,13 +1157,23 @@ export function AdminPage({
                               </span>
                             </div>
 
-                            <span
-                              className={`px-2.5 py-1 rounded-full text-xs font-grotesk font-bold uppercase tracking-wider border ${
-                                statusColors[order.status] || 'bg-stone-100 text-stone-700'
-                              }`}
-                            >
-                              {statusLabels[order.status] || order.status}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-xs font-grotesk font-bold uppercase tracking-wider border ${
+                                  statusColors[order.status] || 'bg-stone-100 text-stone-700'
+                                }`}
+                              >
+                                {statusLabels[order.status] || order.status}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteOrder(order.id, order.customerName)}
+                                className="p-1.5 rounded-lg text-[#747870] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/50 transition cursor-pointer"
+                                title="Excluir este pedido"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
 
                           {/* Itens do Pedido */}
@@ -1126,14 +1209,24 @@ export function AdminPage({
 
                         {/* Ações do Pedido */}
                         <div className="pt-3 border-t border-[#efeeea] flex items-center justify-between gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleCallCustomer(order)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-grotesk font-bold transition cursor-pointer"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>WhatsApp</span>
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleCallCustomer(order)}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-grotesk font-bold transition cursor-pointer"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>WhatsApp</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteOrder(order.id, order.customerName)}
+                              className="p-2 rounded-xl text-[#747870] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/50 border border-transparent hover:border-[#ffdad6] transition cursor-pointer"
+                              title="Excluir este pedido"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
 
                           <div className="flex items-center gap-1.5">
                             {order.status === 'pendente' && (
@@ -1456,7 +1549,7 @@ export function AdminPage({
                     onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}
                     className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
                   >
-                    {DEFAULT_CATEGORIES.map((cat) => (
+                    {availableCategoriesForFilter.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
                       </option>
@@ -1678,7 +1771,7 @@ export function AdminPage({
                     }}
                     className="w-full p-3.5 rounded-xl border border-[#e4e2de] bg-[#fbf9f5] focus:bg-white focus:border-[#283b26] outline-none font-grotesk font-semibold text-sm sm:text-base text-[#132512]"
                   >
-                    {DEFAULT_CATEGORIES.map((cat) => (
+                    {availableCategoriesForFilter.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
                       </option>
