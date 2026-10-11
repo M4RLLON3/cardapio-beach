@@ -14,7 +14,7 @@ import { AdminPage } from './pages/AdminPage';
 import { BeachHouseLogo } from './components/BeachHouseLogo';
 
 const STORE_CONFIG_STORAGE_KEY = 'beach_house_store_config_v1';
-const PRODUCTS_STORAGE_KEY = 'beach_house_products_catalog_v1';
+const PRODUCTS_STORAGE_KEY = 'beach_house_products_catalog_v2';
 const ORDERS_STORAGE_KEY = 'beach_house_orders_v1';
 
 export default function App() {
@@ -81,6 +81,7 @@ export default function App() {
   // Produtos do Cardápio
   const [allProducts, setAllProducts] = useState(() => {
     try {
+      localStorage.removeItem('beach_house_products_catalog_v1');
       const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
       return saved ? JSON.parse(saved) : PRODUCTS;
     } catch {
@@ -92,6 +93,16 @@ export default function App() {
     setAllProducts(newProducts);
     try {
       localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const resetProductsToOfficialMenu = () => {
+    setAllProducts(PRODUCTS);
+    try {
+      localStorage.removeItem('beach_house_products_catalog_v1');
+      localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(PRODUCTS));
     } catch (e) {
       console.error(e);
     }
@@ -229,6 +240,7 @@ export default function App() {
         onResetStoreInfo={resetStoreInfo}
         products={allProducts}
         onUpdateProducts={updateProducts}
+        onResetToOfficialMenu={resetProductsToOfficialMenu}
         orders={orders}
         onUpdateOrders={updateOrders}
         onBackToMenu={navigateToMenu}

@@ -121,13 +121,10 @@ function getPdfDateFilterResult(orders, preset, customStart, customEnd) {
   return { filteredOrders, label };
 }
 
-const DEFAULT_CATEGORIES = [
-  { id: "petiscos", name: "Porções & Petiscos" },
-  { id: "burgers", name: "Burgers & Sanduíches" },
-  { id: "drinks", name: "Drinks & Caipiras" },
-  { id: "bebidas", name: "Cervejas & Não Alcoólicos" },
-  { id: "sobremesas", name: "Açaí & Sobremesas" },
-];
+import {
+  CATEGORIES as DEFAULT_CATEGORIES,
+  PRODUCTS as OFFICIAL_PRODUCTS,
+} from '../data/storeData';
 
 export function AdminPage({
   storeInfo,
@@ -135,6 +132,7 @@ export function AdminPage({
   onResetStoreInfo,
   products,
   onUpdateProducts,
+  onResetToOfficialMenu,
   orders = [],
   onUpdateOrders,
   onBackToMenu,
@@ -163,7 +161,7 @@ export function AdminPage({
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: '',
-    categoryId: 'petiscos',
+    categoryId: 'porcoes',
     customCategoryName: '',
     price: '',
     description: '',
@@ -216,6 +214,7 @@ export function AdminPage({
           setAdminSession(session);
         }}
         onBackToMenu={onBackToMenu}
+        onResetToOfficialMenu={onResetToOfficialMenu}
         onSyncStoreInfo={(info) => {
           if (onUpdateStoreInfo) {
             onUpdateStoreInfo({
@@ -363,11 +362,15 @@ export function AdminPage({
       : newProduct.categoryId;
 
     const fallbackImages = {
-      petiscos: 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80',
-      burgers: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80',
-      drinks: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=800&q=80',
+      porcoes: 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80',
+      combos: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80',
+      combinacoes: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+      pizzas: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80',
+      cervejas: 'https://images.unsplash.com/photo-1608270178550-9694e9f7831f?auto=format&fit=crop&w=800&q=80',
+      coqueteis: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=800&q=80',
       bebidas: 'https://images.unsplash.com/photo-1535958636474-b021ee887b13?auto=format&fit=crop&w=800&q=80',
-      sobremesas: 'https://images.unsplash.com/photo-1590301157890-4810ed352733?auto=format&fit=crop&w=800&q=80',
+      energeticos: 'https://images.unsplash.com/photo-1622543925917-763c34d1a86e?auto=format&fit=crop&w=800&q=80',
+      destilados: 'https://images.unsplash.com/photo-1527061011665-3652c757a4d4?auto=format&fit=crop&w=800&q=80',
     };
 
     const finalImage = newProduct.imageUrl.trim() 
@@ -390,7 +393,7 @@ export function AdminPage({
     setIsAddProductOpen(false);
     setNewProduct({
       name: '',
-      categoryId: 'petiscos',
+      categoryId: 'porcoes',
       customCategoryName: '',
       price: '',
       description: '',
@@ -398,6 +401,17 @@ export function AdminPage({
       isAvailable: true,
     });
     showProductFeedback(`Produto "${created.name}" adicionado com sucesso.`);
+  };
+
+  const handleRestoreOfficialMenu = () => {
+    if (window.confirm('Deseja recarregar o Cardápio Oficial completo do Beach House com os 81 produtos cadastrados das 4 páginas do PDF?')) {
+      if (onResetToOfficialMenu) {
+        onResetToOfficialMenu();
+      } else {
+        onUpdateProducts(OFFICIAL_PRODUCTS);
+      }
+      showProductFeedback('Cardápio oficial com 81 itens restaurado com sucesso.');
+    }
   };
 
   const getCategoryLabel = (catId, customName) => {
@@ -574,15 +588,27 @@ export function AdminPage({
                   <p className="text-xs text-[#6A786D] mt-0.5">Gerencie disponibilidade, preços e receitas.</p>
                 </div>
 
-                {/* Botão Novo Item (Olive Green Pill) */}
-                <button
-                  type="button"
-                  onClick={() => setIsAddProductOpen(true)}
-                  className="shrink-0 inline-flex items-center gap-1.5 bg-[#315433] hover:bg-[#233F25] active:scale-95 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl shadow-xs transition-all duration-150 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Novo Item</span>
-                </button>
+                {/* Botões de Ação do Catálogo */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRestoreOfficialMenu}
+                    className="shrink-0 inline-flex items-center gap-1.5 bg-[#FAF8F3] hover:bg-[#EBF2EA] text-[#315433] border border-[#DEEAD8] text-xs font-semibold px-3 py-2.5 rounded-xl transition-all cursor-pointer"
+                    title="Restaurar Cardápio Oficial com os 81 produtos cadastrados do cardápio"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Restaurar 81 Itens</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddProductOpen(true)}
+                    className="shrink-0 inline-flex items-center gap-1.5 bg-[#315433] hover:bg-[#233F25] active:scale-95 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl shadow-xs transition-all duration-150 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Novo Item</span>
+                  </button>
+                </div>
               </div>
 
               {/* Filtro Rápido de Categorias (Horizontal Scroll) */}

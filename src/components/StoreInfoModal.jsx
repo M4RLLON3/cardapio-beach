@@ -115,7 +115,7 @@ export function StoreInfoModal({ isOpen, onClose, storeInfo, onUpdateStoreInfo, 
           ) : (
             <form onSubmit={handleSave} className="space-y-3.5">
               <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-xl text-xs leading-relaxed">
-                💡 <strong>Dica de Teste:</strong> Você pode alterar o número do WhatsApp abaixo para o seu próprio número de celular (com DDD, ex.: <code>5511999999999</code>) para testar os pedidos recebidos em tempo real!
+                <strong>Dica de Teste:</strong> Você pode alterar o número do WhatsApp abaixo para o seu próprio número de celular (com DDD, ex.: <code>5511999999999</code>) para testar os pedidos recebidos em tempo real!
               </div>
 
               <div>

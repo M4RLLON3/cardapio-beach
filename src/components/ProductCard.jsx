@@ -41,9 +41,18 @@ export function ProductCard({ product, onSelectProduct }) {
 
         {/* Preço e Botão */}
         <div className="flex items-center justify-between mt-3 pt-2">
-          <span className="font-black text-sm sm:text-base text-[#2C3E18]">
-            {formatCurrency(product.price)}
-          </span>
+          <div className="flex flex-col">
+            {product.options && product.options.length > 1 && (
+              <span className="text-[10px] font-semibold text-[#2C3E18]/60 uppercase tracking-wider">
+                A partir de
+              </span>
+            )}
+            <span className="font-black text-sm sm:text-base text-[#2C3E18]">
+              {product.options && product.options.length > 1
+                ? formatCurrency(Math.min(...product.options.map((o) => o.price)))
+                : formatCurrency(product.price)}
+            </span>
+          </div>
 
           {isAvailable ? (
             <button
@@ -51,7 +60,9 @@ export function ProductCard({ product, onSelectProduct }) {
               className="flex items-center gap-1 text-xs font-bold text-[#FCFAF6] bg-[#4A692D] hover:bg-[#3A5323] px-3 py-1.5 rounded-xl transition-all shadow-sm group-hover:scale-105"
             >
               <Plus className="w-3.5 h-3.5 stroke-[3]" />
-              <span className="hidden sm:inline">Adicionar</span>
+              <span className="hidden sm:inline">
+                {product.options && product.options.length > 1 ? 'Opções' : 'Adicionar'}
+              </span>
             </button>
           ) : (
             <span className="text-xs text-[#2C3E18]/40 font-medium">Indisponível</span>

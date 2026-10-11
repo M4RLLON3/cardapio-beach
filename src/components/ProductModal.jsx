@@ -5,11 +5,17 @@ import { formatCurrency } from '../utils/formatters';
 export function ProductModal({ product, isOpen, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
+  const [selectedOption, setSelectedOption] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       setQuantity(1);
       setNotes('');
+      if (product?.options && product.options.length > 0) {
+        setSelectedOption(product.options[0]);
+      } else {
+        setSelectedOption(null);
+      }
     }
   }, [isOpen, product]);
 
@@ -23,10 +29,20 @@ export function ProductModal({ product, isOpen, onClose, onAddToCart }) {
 
   if (!isOpen || !product) return null;
 
-  const totalItemPrice = product.price * quantity;
+  const currentUnitPrice = selectedOption ? selectedOption.price : product.price;
+  const totalItemPrice = currentUnitPrice * quantity;
 
   const handleConfirm = () => {
-    onAddToCart(product, quantity, notes);
+    const productToAdd = selectedOption
+      ? {
+          ...product,
+          id: `${product.id}-${selectedOption.name.toLowerCase().replace(/\s+/g, '-')}`,
+          name: `${product.name} (${selectedOption.name})`,
+          price: selectedOption.price,
+        }
+      : product;
+
+    onAddToCart(productToAdd, quantity, notes);
     onClose();
   };
 
@@ -74,9 +90,40 @@ export function ProductModal({ product, isOpen, onClose, onAddToCart }) {
               {product.description}
             </p>
             <div className="mt-3 text-lg font-black text-[#2C3E18]">
-              {formatCurrency(product.price)}
+              {formatCurrency(currentUnitPrice)}
             </div>
           </div>
+
+          {/* Seletor de Opções (ex.: Doses e Garrafas de Destilados) */}
+          {product.options && product.options.length > 1 && (
+            <div>
+              <label className="block text-xs font-black text-[#2C3E18] uppercase tracking-wider mb-2">
+                Selecione o Tamanho / Opção
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {product.options.map((opt) => {
+                  const isSelected = selectedOption?.name === opt.name;
+                  return (
+                    <button
+                      key={opt.name}
+                      type="button"
+                      onClick={() => setSelectedOption(opt)}
+                      className={`p-2.5 rounded-xl border-2 text-xs font-bold transition-all text-center flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                        isSelected
+                          ? 'border-[#4A692D] bg-[#EAF0DF] text-[#2C3E18] shadow-sm'
+                          : 'border-[#DDD7C4] bg-[#F5F2EB] text-[#2C3E18]/80 hover:border-[#4A692D]/40'
+                      }`}
+                    >
+                      <span className="font-extrabold">{opt.name}</span>
+                      <span className="text-[11px] font-black text-[#4A692D]">
+                        {formatCurrency(opt.price)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <hr className="border-[#DDD7C4]" />
 
