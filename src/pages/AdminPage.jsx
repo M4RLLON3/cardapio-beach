@@ -39,6 +39,10 @@ import {
   BellRing,
   Play,
   Crop,
+  Cloud,
+  RefreshCw,
+  Download,
+  Database,
 } from 'lucide-react';
 import {
   formatCurrency,
@@ -52,6 +56,10 @@ import {
   CATEGORIES as DEFAULT_CATEGORIES,
 } from '../data/storeData';
 import { ProductPhotoEditor } from '../components/ProductPhotoEditor';
+import {
+  exportCardapioBackup,
+  importCardapioBackup,
+} from '../utils/cloudSync';
 import {
   playOrderNotificationSound,
   isOrderSoundEnabled,
@@ -189,6 +197,7 @@ export function AdminPage({
   onResetStoreInfo,
   products,
   categories,
+  deletedCategoryIds = [],
   onUpdateProducts,
   onDeleteCategory,
   orders = [],
@@ -196,6 +205,10 @@ export function AdminPage({
   onBackToMenu,
   adminSession,
   onLogout,
+  isCloudSyncing = false,
+  lastCloudSyncTime = null,
+  onForceCloudSync,
+  onReloadFromCloud,
 }) {
   const [formData, setFormData] = useState({
     name: storeInfo.name,
@@ -839,6 +852,30 @@ export function AdminPage({
 
           {/* Ações da Direita */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Status e Sincronização da Nuvem D1 */}
+            <button
+              type="button"
+              onClick={async () => {
+                if (onForceCloudSync) {
+                  const res = await onForceCloudSync();
+                  if (res?.success) {
+                    showProductFeedback('Cardápio e fotos sincronizados na nuvem Cloudflare D1 com sucesso!');
+                  }
+                }
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-grotesk font-semibold transition shadow-xs cursor-pointer ${
+                isCloudSyncing
+                  ? 'bg-[#daeaaa] text-[#161f00] border border-[#becd90] animate-pulse'
+                  : 'bg-white hover:bg-[#efeeea] text-[#132512] border border-[#c4c8bf]'
+              }`}
+              title="Sincronização em nuvem ativa. Clique para forçar o salvamento na nuvem agora."
+            >
+              <Cloud className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-spin text-[#161f00]' : 'text-[#283b26]'}`} />
+              <span className="hidden sm:inline">
+                {isCloudSyncing ? 'Sincronizando...' : 'Nuvem Conectada'}
+              </span>
+            </button>
+
             {/* CNPJ Badge */}
             <div
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f5f3ef] border border-[#e4e2de] text-xs font-grotesk text-[#132512]"
@@ -1768,6 +1805,131 @@ export function AdminPage({
                     </button>
                   </div>
                 </form>
+              </div>
+
+              {/* Card de Sincronização em Nuvem (Cloudflare D1) & Backup */}
+              <div className="bg-white rounded-2xl border border-[#efeeea] p-6 shadow-xs space-y-5 mt-6">
+                <div>
+                  <span className="font-grotesk text-[10px] uppercase tracking-widest text-[#566431] font-bold flex items-center gap-1.5">
+                    <Cloud className="w-3.5 h-3.5" />
+                    <span>Sincronização em Nuvem Cloudflare D1</span>
+                  </span>
+                  <h2 className="font-grotesk text-xl font-bold text-[#132512] tracking-tight mt-0.5">
+                    Banco de Dados & Backup
+                  </h2>
+                  <p className="font-manrope text-xs text-[#747870] mt-1">
+                    Todas as fotos, preços e produtos ficam salvos na nuvem para que qualquer computador ou celular visualize as mesmas informações instantaneamente.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#f5f3ef] border border-[#e4e2de] space-y-2 text-xs font-manrope">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#434841] font-semibold">Status do Banco de Dados:</span>
+                    <span className="font-grotesk font-bold text-[#283b26] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#566431] animate-pulse" />
+                      <span>Online (Cloudflare D1)</span>
+                    </span>
+                  </div>
+                  {lastCloudSyncTime && (
+                    <div className="flex items-center justify-between text-[11px] text-[#747870]">
+                      <span>Última sincronização na nuvem:</span>
+                      <span className="font-mono">{new Date(lastCloudSyncTime).toLocaleString('pt-BR')}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (onForceCloudSync) {
+                        const res = await onForceCloudSync();
+                        if (res?.success) {
+                          showProductFeedback('Cardápio sincronizado na nuvem com sucesso!');
+                        } else {
+                          alert('Erro ao sincronizar com a nuvem: ' + (res?.error || 'Tente novamente.'));
+                        }
+                      }
+                    }}
+                    className="p-3 rounded-xl bg-[#283b26] hover:bg-[#132512] text-white font-grotesk text-xs uppercase tracking-wider font-bold transition shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+                    <span>Salvar Tudo na Nuvem Agora</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm('Deseja recarregar os dados mais recentes da nuvem? Isso atualizará este computador com as alterações feitas em outros aparelhos.')) {
+                        if (onReloadFromCloud) {
+                          const ok = await onReloadFromCloud();
+                          if (ok) {
+                            showProductFeedback('Dados da nuvem recarregados com sucesso neste computador!');
+                          } else {
+                            alert('Nenhum dado novo encontrado na nuvem.');
+                          }
+                        }
+                      }
+                    }}
+                    className="p-3 rounded-xl bg-white hover:bg-[#efeeea] border border-[#c4c8bf] text-[#132512] font-grotesk text-xs uppercase tracking-wider font-bold transition shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4 text-[#566431]" />
+                    <span>Recarregar da Nuvem</span>
+                  </button>
+                </div>
+
+                {/* Seção de Backup em Arquivo Local */}
+                <div className="pt-4 border-t border-[#efeeea]">
+                  <h4 className="font-grotesk text-xs font-bold uppercase tracking-wider text-[#132512] mb-1">
+                    Backup em Arquivo (.json)
+                  </h4>
+                  <p className="font-manrope text-[11px] text-[#747870] mb-3">
+                    Você também pode baixar um arquivo de segurança no seu computador com todas as fotos e produtos cadastrados, ou restaurar um backup existente.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        exportCardapioBackup({
+                          storeInfo,
+                          products,
+                          deletedCategoryIds,
+                          orders,
+                        });
+                        showProductFeedback('Arquivo de backup exportado para seus downloads.');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-[#f5f3ef] hover:bg-[#e4e2de] text-[#132512] font-grotesk text-xs font-semibold uppercase tracking-wider transition border border-[#dedad2] cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Baixar Backup Completo</span>
+                    </button>
+
+                    <label className="px-4 py-2 rounded-xl bg-white hover:bg-[#f5f3ef] text-[#132512] font-grotesk text-xs font-semibold uppercase tracking-wider transition border border-[#c4c8bf] cursor-pointer flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5 text-[#566431]" />
+                      <span>Restaurar Backup</span>
+                      <input
+                        type="file"
+                        accept=".json"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const backupData = await importCardapioBackup(file);
+                            if (backupData.products) onUpdateProducts(backupData.products);
+                            if (backupData.storeInfo) onUpdateStoreInfo(backupData.storeInfo);
+                            if (backupData.orders) onUpdateOrders(backupData.orders);
+                            showProductFeedback('Backup restaurado e sincronizado com sucesso!');
+                          } catch (err) {
+                            alert(err.message || 'Erro ao importar backup.');
+                          } finally {
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           )}

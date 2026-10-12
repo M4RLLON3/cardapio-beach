@@ -12,6 +12,12 @@ import { FloatingCartButton } from './components/FloatingCartButton';
 import { AdminPage } from './pages/AdminPage';
 import { AdminAuthView } from './components/AdminAuthView';
 import { broadcastNewOrder, unlockAudioOnFirstInteraction } from './utils/orderNotification';
+import {
+  fetchCardapioFromCloud,
+  saveCardapioToCloudDebounced,
+  saveCardapioToCloudImmediate,
+  DEFAULT_ARENA_ID,
+} from './utils/cloudSync';
 
 const STORE_CONFIG_STORAGE_KEY = 'beach_house_store_config_v1';
 const PRODUCTS_STORAGE_KEY = 'beach_house_products_catalog_v2';
@@ -96,24 +102,6 @@ export default function App() {
     }
   });
 
-  const updateStoreInfo = (newInfo) => {
-    setStoreInfo(newInfo);
-    try {
-      localStorage.setItem(STORE_CONFIG_STORAGE_KEY, JSON.stringify(newInfo));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const resetStoreInfo = () => {
-    setStoreInfo(INITIAL_STORE_CONFIG);
-    try {
-      localStorage.removeItem(STORE_CONFIG_STORAGE_KEY);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   // Produtos do Cardápio
   const [allProducts, setAllProducts] = useState(() => {
     try {
@@ -130,15 +118,6 @@ export default function App() {
     }
   });
 
-  const updateProducts = (newProducts) => {
-    setAllProducts(newProducts);
-    try {
-      localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   const DELETED_CATEGORIES_KEY = 'beach_house_deleted_categories_v1';
   const [deletedCategoryIds, setDeletedCategoryIds] = useState(() => {
     try {
@@ -148,19 +127,6 @@ export default function App() {
       return [];
     }
   });
-
-  const handleDeleteCategory = (categoryId) => {
-    const nextDeleted = [...new Set([...deletedCategoryIds, categoryId])];
-    setDeletedCategoryIds(nextDeleted);
-    try {
-      localStorage.setItem(DELETED_CATEGORIES_KEY, JSON.stringify(nextDeleted));
-    } catch (e) {
-      console.error(e);
-    }
-    // Remove produtos pertencentes à categoria excluída
-    const remainingProducts = allProducts.filter((p) => p.categoryId !== categoryId);
-    updateProducts(remainingProducts);
-  };
 
   // Pedidos da Loja (Persistidos e Sincronizados)
   const [orders, setOrders] = useState(() => {
@@ -172,6 +138,135 @@ export default function App() {
     }
   });
 
+  // Estados de Sincronização em Nuvem (Cloudflare D1)
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState(null);
+
+  // Carregamento inicial da Nuvem (Atualiza o dispositivo com o que foi feito em qualquer computador)
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCloudCatalog = async () => {
+      setIsCloudSyncing(true);
+      try {
+        const cloudData = await fetchCardapioFromCloud(DEFAULT_ARENA_ID);
+        if (!isMounted) return;
+
+        if (cloudData && cloudData.success && !cloudData.notFound) {
+          if (cloudData.produtos && Array.isArray(cloudData.produtos) && cloudData.produtos.length > 0) {
+            setAllProducts(cloudData.produtos);
+            try {
+              localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(cloudData.produtos));
+            } catch {}
+          }
+          if (cloudData.storeConfig && typeof cloudData.storeConfig === 'object') {
+            setStoreInfo((prev) => {
+              const merged = { ...prev, ...cloudData.storeConfig };
+              try {
+                localStorage.setItem(STORE_CONFIG_STORAGE_KEY, JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
+          }
+          if (cloudData.categoriasExcluidas && Array.isArray(cloudData.categoriasExcluidas)) {
+            setDeletedCategoryIds(cloudData.categoriasExcluidas);
+            try {
+              localStorage.setItem(DELETED_CATEGORIES_KEY, JSON.stringify(cloudData.categoriasExcluidas));
+            } catch {}
+          }
+          if (cloudData.pedidos && Array.isArray(cloudData.pedidos)) {
+            setOrders(cloudData.pedidos);
+            try {
+              localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(cloudData.pedidos));
+            } catch {}
+          }
+          if (cloudData.atualizadoEm) {
+            setLastCloudSyncTime(cloudData.atualizadoEm);
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar dados da nuvem:', err);
+      } finally {
+        if (isMounted) setIsCloudSyncing(false);
+      }
+    };
+
+    loadCloudCatalog();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const updateStoreInfo = (newInfo) => {
+    setStoreInfo(newInfo);
+    try {
+      localStorage.setItem(STORE_CONFIG_STORAGE_KEY, JSON.stringify(newInfo));
+    } catch (e) {
+      console.error(e);
+    }
+    // Sincroniza instantaneamente na nuvem D1
+    saveCardapioToCloudDebounced({
+      arenaId: DEFAULT_ARENA_ID,
+      storeConfig: newInfo,
+      produtos: allProducts,
+      pedidos: orders,
+      categoriasExcluidas: deletedCategoryIds,
+    });
+  };
+
+  const resetStoreInfo = () => {
+    setStoreInfo(INITIAL_STORE_CONFIG);
+    try {
+      localStorage.removeItem(STORE_CONFIG_STORAGE_KEY);
+    } catch (e) {
+      console.error(e);
+    }
+    saveCardapioToCloudDebounced({
+      arenaId: DEFAULT_ARENA_ID,
+      storeConfig: INITIAL_STORE_CONFIG,
+      produtos: allProducts,
+      pedidos: orders,
+      categoriasExcluidas: deletedCategoryIds,
+    });
+  };
+
+  const updateProducts = (newProducts) => {
+    setAllProducts(newProducts);
+    try {
+      localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
+    } catch (e) {
+      console.error(e);
+    }
+    // Sincroniza instantaneamente na nuvem D1 (todas as fotos e produtos salvam na nuvem)
+    saveCardapioToCloudDebounced({
+      arenaId: DEFAULT_ARENA_ID,
+      storeConfig: storeInfo,
+      produtos: newProducts,
+      pedidos: orders,
+      categoriasExcluidas: deletedCategoryIds,
+    });
+  };
+
+  const handleDeleteCategory = (categoryId) => {
+    const nextDeleted = [...new Set([...deletedCategoryIds, categoryId])];
+    setDeletedCategoryIds(nextDeleted);
+    const remainingProducts = allProducts.filter((p) => p.categoryId !== categoryId);
+    setAllProducts(remainingProducts);
+    try {
+      localStorage.setItem(DELETED_CATEGORIES_KEY, JSON.stringify(nextDeleted));
+      localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(remainingProducts));
+    } catch (e) {
+      console.error(e);
+    }
+    saveCardapioToCloudDebounced({
+      arenaId: DEFAULT_ARENA_ID,
+      storeConfig: storeInfo,
+      produtos: remainingProducts,
+      pedidos: orders,
+      categoriasExcluidas: nextDeleted,
+    });
+  };
+
   const updateOrders = (newOrders) => {
     setOrders(newOrders);
     try {
@@ -179,6 +274,61 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
+    saveCardapioToCloudDebounced({
+      arenaId: DEFAULT_ARENA_ID,
+      pedidos: newOrders,
+    });
+  };
+
+  // Forçar Sincronização Manual com a Nuvem
+  const handleForceCloudSync = async () => {
+    setIsCloudSyncing(true);
+    const res = await saveCardapioToCloudImmediate({
+      arenaId: DEFAULT_ARENA_ID,
+      storeConfig: storeInfo,
+      produtos: allProducts,
+      pedidos: orders,
+      categoriasExcluidas: deletedCategoryIds,
+    });
+    const refreshed = await fetchCardapioFromCloud(DEFAULT_ARENA_ID);
+    setIsCloudSyncing(false);
+    if (refreshed && refreshed.atualizadoEm) {
+      setLastCloudSyncTime(refreshed.atualizadoEm);
+    }
+    return res;
+  };
+
+  // Recarregar os Dados da Nuvem
+  const handleReloadFromCloud = async () => {
+    setIsCloudSyncing(true);
+    const cloudData = await fetchCardapioFromCloud(DEFAULT_ARENA_ID);
+    setIsCloudSyncing(false);
+
+    if (cloudData && cloudData.success && !cloudData.notFound) {
+      if (cloudData.produtos && Array.isArray(cloudData.produtos)) {
+        setAllProducts(cloudData.produtos);
+        try {
+          localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(cloudData.produtos));
+        } catch {}
+      }
+      if (cloudData.storeConfig) {
+        setStoreInfo((prev) => ({ ...prev, ...cloudData.storeConfig }));
+        try {
+          localStorage.setItem(STORE_CONFIG_STORAGE_KEY, JSON.stringify(cloudData.storeConfig));
+        } catch {}
+      }
+      if (cloudData.categoriasExcluidas) {
+        setDeletedCategoryIds(cloudData.categoriasExcluidas);
+        try {
+          localStorage.setItem(DELETED_CATEGORIES_KEY, JSON.stringify(cloudData.categoriasExcluidas));
+        } catch {}
+      }
+      if (cloudData.atualizadoEm) {
+        setLastCloudSyncTime(cloudData.atualizadoEm);
+      }
+      return true;
+    }
+    return false;
   };
 
   // Sincroniza em tempo real com outras abas
@@ -359,6 +509,7 @@ export default function App() {
         onResetStoreInfo={resetStoreInfo}
         products={allProducts}
         categories={dynamicCategories}
+        deletedCategoryIds={deletedCategoryIds}
         onUpdateProducts={updateProducts}
         onDeleteCategory={handleDeleteCategory}
         orders={orders}
@@ -366,6 +517,10 @@ export default function App() {
         onBackToMenu={navigateToMenu}
         adminSession={adminSession}
         onLogout={handleAdminLogout}
+        isCloudSyncing={isCloudSyncing}
+        lastCloudSyncTime={lastCloudSyncTime}
+        onForceCloudSync={handleForceCloudSync}
+        onReloadFromCloud={handleReloadFromCloud}
       />
     );
   }
