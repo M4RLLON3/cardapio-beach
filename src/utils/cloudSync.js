@@ -2,7 +2,10 @@
 // Permite que qualquer alteração de foto, produto ou configuração feita em um computador
 // ou celular seja salva na nuvem e apareça instantaneamente em todos os aparelhos.
 
-const API_BASE_URL = 'https://beach-tennis-app.pages.dev/api';
+// Aponta para o backend dedicado do próprio cardápio no Cloudflare Pages (sem CORS e com latência ultra-baixa)
+const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname.includes('pages.dev') || window.location.hostname.includes('beachhouse') || window.location.hostname === 'localhost')
+  ? '/api'
+  : 'https://beachhousecardapio.pages.dev/api';
 export const DEFAULT_ARENA_ID = 2;
 
 let syncTimeout = null;

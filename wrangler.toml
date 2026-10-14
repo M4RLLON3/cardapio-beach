@@ -1,3 +1,8 @@
 name = "beachhousecardapio"
 compatibility_date = "2024-08-01"
 pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cardapio-d1"
+database_id = "7e0c3207-e338-4c7d-887a-42dda1d353ed"

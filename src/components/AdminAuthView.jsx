@@ -17,7 +17,9 @@ import {
 } from 'lucide-react';
 import { BeachHouseLogo } from './BeachHouseLogo';
 
-const API_BASE_URL = 'https://beach-tennis-app.pages.dev/api';
+const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname.includes('pages.dev') || window.location.hostname.includes('beachhouse') || window.location.hostname === 'localhost')
+  ? '/api'
+  : 'https://beachhousecardapio.pages.dev/api';
 
 // Máscara e formatação de CNPJ: 00.000.000/0000-00
 export function formatCNPJ(value) {
