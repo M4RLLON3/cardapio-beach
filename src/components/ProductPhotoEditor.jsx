@@ -15,8 +15,48 @@ import {
   Maximize2,
   Minimize2,
   Sparkles,
+  Layers,
+  Sliders,
 } from 'lucide-react';
 import { compressCanvasToTargetWebP } from '../utils/cloudSync';
+
+/**
+ * Renderiza um fundo desfocado profissional usando algoritmo de multi-pass downscale/upscale.
+ * 100% compativel com todos os navegadores e celulares (nao depende de suporte ao ctx.filter).
+ */
+function drawBlurredBackground(ctx, img, targetWidth, targetHeight, blurIntensity) {
+  // Preenche base neutra escura
+  ctx.fillStyle = '#132512';
+  ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+  if (!img || blurIntensity <= 0) return;
+
+  // Multi-pass downscale bilinear
+  const factor = Math.max(14, Math.min(55, Math.round(blurIntensity * 1.4)));
+  const tinyW = Math.max(8, Math.round(targetWidth / factor));
+  const tinyH = Math.max(6, Math.round(targetHeight / factor));
+
+  const offscreen = document.createElement('canvas');
+  offscreen.width = tinyW;
+  offscreen.height = tinyH;
+  const offCtx = offscreen.getContext('2d');
+  if (offCtx) {
+    offCtx.imageSmoothingEnabled = true;
+    offCtx.drawImage(img, 0, 0, tinyW, tinyH);
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    try {
+      ctx.filter = `blur(${Math.min(10, blurIntensity / 3)}px) brightness(55%)`;
+    } catch (e) {}
+    ctx.drawImage(offscreen, -20, -20, targetWidth + 40, targetHeight + 40);
+
+    // Escurece suavemente o fundo para garantir destaque ao prato da frente
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.40)';
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
+    ctx.restore();
+  }
+}
 
 export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
   // Ajustes de Tamanho e Posição
@@ -25,8 +65,8 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
   const [rotation, setRotation] = useState(0); // 0, 90, 180, 270
   const [panX, setPanX] = useState(0); // -60% a +60%
   const [panY, setPanY] = useState(0); // -60% a +60%
-  const [bgStyle, setBgStyle] = useState('blur'); // 'blur' | 'dark' | 'light'
-  const [blurIntensity, setBlurIntensity] = useState(20); // 0 a 50px
+  const [bgStyle, setBgStyle] = useState('dark'); // 'dark' | 'light' | 'blur' (fundo escuro por padrão, sem duplicar foto)
+  const [blurIntensity, setBlurIntensity] = useState(25); // 5 a 50px
 
   // Ajustes Fotográficos
   const [brightness, setBrightness] = useState(100); // 60 a 140
@@ -55,14 +95,14 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
     };
     img.src = imageUrl;
 
-    // Reset de ajustes ao abrir nova imagem
+    // Reset de ajustes ao abrir nova imagem: mantém imagem única e limpa por padrão
     setZoom(1);
     setFitMode('cover');
     setRotation(0);
     setPanX(0);
     setPanY(0);
-    setBgStyle('blur');
-    setBlurIntensity(20);
+    setBgStyle('dark');
+    setBlurIntensity(25);
     setBrightness(100);
     setContrast(100);
     setSaturation(100);
@@ -87,12 +127,9 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
 
     ctx.clearRect(0, 0, targetWidth, targetHeight);
 
-    // 1. Fundo do Quadro (quando a foto não cobre toda a área)
+    // 1. Fundo do Quadro (quando a foto for reduzida ou tiver margens)
     if (bgStyle === 'blur') {
-      ctx.save();
-      ctx.filter = `blur(${blurIntensity}px) brightness(60%)`;
-      ctx.drawImage(img, -20, -20, targetWidth + 40, targetHeight + 40);
-      ctx.restore();
+      drawBlurredBackground(ctx, img, targetWidth, targetHeight, blurIntensity);
     } else if (bgStyle === 'light') {
       ctx.fillStyle = '#f5f3ef';
       ctx.fillRect(0, 0, targetWidth, targetHeight);
@@ -199,8 +236,8 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
     setRotation(0);
     setPanX(0);
     setPanY(0);
-    setBgStyle('blur');
-    setBlurIntensity(20);
+    setBgStyle('dark');
+    setBlurIntensity(25);
     setBrightness(100);
     setContrast(100);
     setSaturation(100);
@@ -484,26 +521,38 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
                 <ZoomIn className="w-4 h-4" />
               </button>
             </div>
+          </div>
 
-            {/* Opções de Fundo (se a foto for menor que o quadro) */}
-            <div className="pt-2 border-t border-[#e4e2de] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-              <span className="text-[#434841] font-semibold">
-                Fundo do quadro (quando a foto for reduzida):
-              </span>
-              <div className="flex items-center gap-1.5">
+          {/* ══════════════════════════════════════════════════════════
+              FUNDO DA IMAGEM E REGULAGEM DE DESFOQUE
+          ══════════════════════════════════════════════════════════ */}
+          <div className="p-4 bg-[#fbf9f5] rounded-2xl border border-[#e4e2de] space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <label className="font-grotesk text-xs sm:text-sm font-bold uppercase tracking-wider text-[#132512] flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-[#283b26]" />
+                  <span>Fundo da Imagem e Desfoque</span>
+                </label>
+                <p className="font-manrope text-[11px] text-[#747870]">
+                  Escolha o acabamento das bordas quando a foto for reduzida ou reposicionada.
+                </p>
+              </div>
+
+              {/* Botões de Seleção do Modo de Fundo */}
+              <div className="flex flex-wrap items-center gap-1.5">
                 {[
-                  { id: 'blur', label: 'Desfocado da Foto' },
-                  { id: 'dark', label: 'Fundo Escuro' },
+                  { id: 'dark', label: 'Fundo Escuro (Padrão)' },
                   { id: 'light', label: 'Fundo Claro' },
+                  { id: 'blur', label: 'Desfocado da Foto' },
                 ].map((bg) => (
                   <button
                     key={bg.id}
                     type="button"
                     onClick={() => setBgStyle(bg.id)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-grotesk font-semibold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-grotesk font-bold transition cursor-pointer shadow-2xs ${
                       bgStyle === bg.id
-                        ? 'bg-[#daeaaa] text-[#161f00] border border-[#becd90]'
-                        : 'bg-white hover:bg-[#efeeea] text-[#747870] border border-[#e4e2de]'
+                        ? 'bg-[#283b26] text-white border border-[#132512]'
+                        : 'bg-white hover:bg-[#efeeea] text-[#132512] border border-[#c4c8bf]'
                     }`}
                   >
                     {bg.label}
@@ -512,26 +561,64 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
               </div>
             </div>
 
-            {/* Regulagem de Desfoque quando o Fundo for Desfocado */}
-            {bgStyle === 'blur' && (
-              <div className="pt-2 border-t border-[#e4e2de]/60 flex items-center gap-3">
-                <div className="flex-1 space-y-1">
-                  <div className="flex justify-between text-xs font-grotesk font-semibold text-[#434841]">
-                    <span>Intensidade do Desfoque do Fundo</span>
-                    <span className="font-mono text-[#283b26] bg-[#daeaaa] px-2 py-0.5 rounded-md text-[11px] font-bold">
-                      {blurIntensity}px
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="50"
-                    step="1"
-                    value={blurIntensity}
-                    onChange={(e) => setBlurIntensity(parseInt(e.target.value, 10))}
-                    className="w-full accent-[#283b26] cursor-pointer"
-                  />
+            {/* Painel em Destaque: Regulagem de Desfoque quando 'Desfocado da Foto' estiver ativo */}
+            {bgStyle === 'blur' ? (
+              <div className="p-3.5 bg-white rounded-xl border-2 border-[#becd90] space-y-2.5 shadow-xs animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-grotesk font-bold text-[#132512] flex items-center gap-1.5">
+                    <Sliders className="w-4 h-4 text-[#283b26]" />
+                    <span>Regulagem do Desfoque do Fundo</span>
+                  </span>
+                  <span className="font-mono text-xs font-bold text-[#161f00] bg-[#daeaaa] px-2.5 py-0.5 rounded-md">
+                    {blurIntensity}px
+                  </span>
                 </div>
+
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  step="1"
+                  value={blurIntensity}
+                  onChange={(e) => setBlurIntensity(parseInt(e.target.value, 10))}
+                  className="w-full accent-[#283b26] cursor-pointer"
+                />
+
+                <div className="flex items-center justify-between text-[11px] text-[#747870]">
+                  <span>Desfoque Suave (5px)</span>
+                  <div className="flex items-center gap-1">
+                    {[
+                      { label: 'Suave', val: 12 },
+                      { label: 'Médio', val: 25 },
+                      { label: 'Intenso', val: 45 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.val}
+                        type="button"
+                        onClick={() => setBlurIntensity(preset.val)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-grotesk font-bold transition cursor-pointer ${
+                          blurIntensity === preset.val
+                            ? 'bg-[#283b26] text-white'
+                            : 'bg-[#f5f3ef] hover:bg-[#e4e2de] text-[#132512]'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <span>Desfoque Máximo (50px)</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-2.5 bg-white/70 rounded-xl border border-[#e4e2de] text-[11px] text-[#747870]">
+                <span>Modo atual: <strong>{bgStyle === 'light' ? 'Fundo Claro' : 'Fundo Escuro (Sem duplicar foto)'}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => setBgStyle('blur')}
+                  className="text-[#283b26] font-grotesk font-bold hover:underline cursor-pointer"
+                >
+                  Ativar Desfoque da Foto
+                </button>
               </div>
             )}
           </div>
