@@ -37,7 +37,6 @@ import {
   VolumeX,
   Bell,
   BellRing,
-  Play,
   Crop,
   Cloud,
   RefreshCw,
@@ -199,7 +198,6 @@ export function AdminPage({
       : 'unsupported';
   });
   const [newOrderAlert, setNewOrderAlert] = useState(null);
-  const [soundTestSuccess, setSoundTestSuccess] = useState(false);
 
   // Armazena os IDs dos pedidos já conhecidos para evitar tocar som em pedidos antigos
   const knownOrderIdsRef = useRef(new Set((orders || []).map((o) => o.id)));
@@ -243,18 +241,6 @@ export function AdminPage({
       showProductFeedback('Aviso sonoro no computador ativado.');
     } else {
       showProductFeedback('Aviso sonoro no computador silenciado.');
-    }
-  };
-
-  const handleTestSound = async () => {
-    playOrderNotificationSound();
-    setSoundTestSuccess(true);
-    setTimeout(() => setSoundTestSuccess(false), 3000);
-    showProductFeedback('Campainha tocada no computador com sucesso.');
-
-    if (desktopPermission === 'default') {
-      const granted = await requestNotificationPermission();
-      setDesktopPermission(granted ? 'granted' : 'denied');
     }
   };
 
@@ -835,30 +821,6 @@ export function AdminPage({
 
           {/* Ações da Direita */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Status e Sincronização da Nuvem D1 */}
-            <button
-              type="button"
-              onClick={async () => {
-                if (onForceCloudSync) {
-                  const res = await onForceCloudSync();
-                  if (res?.success) {
-                    showProductFeedback('Cardápio e fotos sincronizados na nuvem Cloudflare D1 com sucesso!');
-                  }
-                }
-              }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-grotesk font-semibold transition shadow-xs cursor-pointer ${
-                isCloudSyncing
-                  ? 'bg-[#daeaaa] text-[#161f00] border border-[#becd90] animate-pulse'
-                  : 'bg-white hover:bg-[#efeeea] text-[#132512] border border-[#c4c8bf]'
-              }`}
-              title="Sincronização em nuvem ativa. Clique para forçar o salvamento na nuvem agora."
-            >
-              <Cloud className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-spin text-[#161f00]' : 'text-[#283b26]'}`} />
-              <span className="hidden sm:inline">
-                {isCloudSyncing ? 'Sincronizando...' : 'Nuvem Conectada'}
-              </span>
-            </button>
-
             {/* CNPJ Badge */}
             <div
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f5f3ef] border border-[#e4e2de] text-xs font-grotesk text-[#132512]"
@@ -869,35 +831,23 @@ export function AdminPage({
             </div>
 
             {/* Controle de Som da Notificação */}
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <button
-                type="button"
-                onClick={handleToggleSound}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-grotesk font-semibold transition shadow-xs cursor-pointer ${
-                  soundEnabled
-                    ? 'bg-[#daeaaa] text-[#161f00] border border-[#becd90] hover:bg-[#d0e29b]'
-                    : 'bg-white text-[#747870] border border-[#c4c8bf] hover:bg-[#efeeea]'
-                }`}
-                title={soundEnabled ? 'Aviso sonoro no computador ativado (Clique para mutar)' : 'Aviso sonoro no computador silenciado (Clique para ativar)'}
-              >
-                {soundEnabled ? (
-                  <Volume2 className="w-3.5 h-3.5 text-[#161f00]" />
-                ) : (
-                  <VolumeX className="w-3.5 h-3.5 text-[#747870]" />
-                )}
-                <span className="hidden sm:inline">{soundEnabled ? 'Som Ativo' : 'Som Mudo'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleTestSound}
-                className="hidden xl:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white hover:bg-[#efeeea] border border-[#c4c8bf] text-[11px] font-grotesk font-semibold text-[#132512] transition shadow-xs cursor-pointer"
-                title="Tocar campainha de teste para verificar as caixas de som do computador"
-              >
-                <Bell className="w-3 h-3 text-[#283b26]" />
-                <span>Testar Som</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleToggleSound}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-grotesk font-semibold transition shadow-xs cursor-pointer ${
+                soundEnabled
+                  ? 'bg-[#daeaaa] text-[#161f00] border border-[#becd90] hover:bg-[#d0e29b]'
+                  : 'bg-white text-[#747870] border border-[#c4c8bf] hover:bg-[#efeeea]'
+              }`}
+              title={soundEnabled ? 'Aviso sonoro no computador ativado (Clique para mutar)' : 'Aviso sonoro no computador silenciado (Clique para ativar)'}
+            >
+              {soundEnabled ? (
+                <Volume2 className="w-3.5 h-3.5 text-[#161f00]" />
+              ) : (
+                <VolumeX className="w-3.5 h-3.5 text-[#747870]" />
+              )}
+              <span className="hidden sm:inline">{soundEnabled ? 'Som Ativo' : 'Som Mudo'}</span>
+            </button>
 
             {/* Ver Cardápio */}
             <button
@@ -999,13 +949,6 @@ export function AdminPage({
                   className="text-xs font-grotesk font-bold underline text-[#daeaaa] hover:text-white cursor-pointer"
                 >
                   Abrir Pedidos
-                </button>
-                <button
-                  type="button"
-                  onClick={handleTestSound}
-                  className="text-[11px] font-grotesk text-white/70 hover:text-white underline cursor-pointer"
-                >
-                  Tocar Som
                 </button>
               </div>
             </div>
@@ -1431,15 +1374,6 @@ export function AdminPage({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
-                  <button
-                    type="button"
-                    onClick={handleTestSound}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#f5f3ef] hover:bg-[#eae8e4] text-[#132512] border border-[#e4e2de] text-xs font-grotesk font-bold transition cursor-pointer"
-                    title="Reproduzir o toque sonoro do computador agora"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current text-[#283b26]" />
-                    <span>{soundTestSuccess ? 'Tocando Som...' : 'Testar Som'}</span>
-                  </button>
 
                   {desktopPermission !== 'granted' && (
                     <button
