@@ -59,6 +59,9 @@ import { ProductPhotoEditor } from '../components/ProductPhotoEditor';
 import {
   exportCardapioBackup,
   importCardapioBackup,
+  compressImageToWebP,
+  updateOrderStatusInCloud,
+  deleteOrderFromCloud,
 } from '../utils/cloudSync';
 import {
   playOrderNotificationSound,
@@ -69,46 +72,8 @@ import {
   subscribeToNewOrders,
 } from '../utils/orderNotification';
 
-const compressImageFile = (file, maxWidth = 900, maxHeight = 900, quality = 0.8) => {
-  return new Promise((resolve, reject) => {
-    if (!file || !file.type.startsWith('image/')) {
-      reject(new Error('Por favor, selecione um arquivo de imagem válido.'));
-      return;
-    }
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
-      };
-      img.onerror = () => reject(new Error('Erro ao processar imagem.'));
-    };
-    reader.onerror = () => reject(new Error('Erro ao ler arquivo do dispositivo.'));
-  });
+const compressImageFile = async (file) => {
+  return compressImageToWebP(file, 400);
 };
 
 const getLocalDateString = (d = new Date()) => {
@@ -314,15 +279,23 @@ export function AdminPage({
   const [productSearchQuery, setProductSearchQuery] = useState('');
 
   // Refs para centralização horizontal da aba de categorias ativa no Admin
+  const adminCategoryNavRef = useRef(null);
   const adminCategoryTabRefs = useRef({});
 
+  const scrollToAdminCategoryTab = (catId) => {
+    const container = adminCategoryNavRef.current;
+    const tab = adminCategoryTabRefs.current[catId];
+    if (!container || !tab) return;
+    const targetScroll = tab.offsetLeft - (container.clientWidth / 2) + (tab.clientWidth / 2);
+    container.scrollTo({
+      left: Math.max(0, targetScroll),
+      behavior: 'smooth',
+    });
+  };
+
   useEffect(() => {
-    if (productCategoryFilter && adminCategoryTabRefs.current[productCategoryFilter]) {
-      adminCategoryTabRefs.current[productCategoryFilter].scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center',
-      });
+    if (productCategoryFilter) {
+      scrollToAdminCategoryTab(productCategoryFilter);
     }
   }, [productCategoryFilter]);
 
@@ -464,17 +437,24 @@ export function AdminPage({
     const url = generateWhatsAppUrl(order.customerPhone, message);
     window.open(url, '_blank');
 
-    if (order.status === 'pendente' && onUpdateOrders) {
-      const updated = orders.map((o) => (o.id === order.id ? { ...o, status: 'em_preparo' } : o));
-      onUpdateOrders(updated);
+    if (order.status === 'pendente') {
+      if (onUpdateOrders) {
+        const updated = orders.map((o) => (o.id === order.id ? { ...o, status: 'em_preparo' } : o));
+        onUpdateOrders(updated);
+      }
+      updateOrderStatusInCloud(order.id, 'em_preparo').catch(() => {});
     }
   };
 
   // Pedidos: Atualizar Status
   const handleUpdateOrderStatus = (orderId, newStatus) => {
-    if (!onUpdateOrders) return;
-    const updated = orders.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o));
-    onUpdateOrders(updated);
+    if (onUpdateOrders) {
+      const updated = orders.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o));
+      onUpdateOrders(updated);
+    }
+    updateOrderStatusInCloud(orderId, newStatus).catch((err) => {
+      console.warn('Erro ao atualizar status do pedido no D1:', err);
+    });
   };
 
   // Pedidos: Excluir Pedido
@@ -490,6 +470,9 @@ export function AdminPage({
         onUpdateOrders(updated);
         showProductFeedback('Pedido excluído com sucesso.');
       }
+      deleteOrderFromCloud(orderId).catch((err) => {
+        console.warn('Erro ao excluir pedido no D1:', err);
+      });
     }
   };
 
@@ -1069,6 +1052,7 @@ export function AdminPage({
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6">
                 {/* Categorias Estilo Editorial com Sublinhado Ativo e Auto-centralização */}
                 <nav
+                  ref={adminCategoryNavRef}
                   aria-label="Categorias do Cardápio"
                   className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 >
@@ -1077,13 +1061,7 @@ export function AdminPage({
                     ref={(el) => (adminCategoryTabRefs.current['all'] = el)}
                     onClick={() => {
                       setProductCategoryFilter('all');
-                      if (adminCategoryTabRefs.current['all']) {
-                        adminCategoryTabRefs.current['all'].scrollIntoView({
-                          behavior: 'smooth',
-                          block: 'nearest',
-                          inline: 'center',
-                        });
-                      }
+                      scrollToAdminCategoryTab('all');
                     }}
                     className="group relative px-3 py-1.5 text-left transition-all duration-200 cursor-pointer shrink-0"
                   >
@@ -1114,13 +1092,7 @@ export function AdminPage({
                           type="button"
                           onClick={() => {
                             setProductCategoryFilter(cat.id);
-                            if (adminCategoryTabRefs.current[cat.id]) {
-                              adminCategoryTabRefs.current[cat.id].scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'nearest',
-                                inline: 'center',
-                              });
-                            }
+                            scrollToAdminCategoryTab(cat.id);
                           }}
                           className="px-3 py-1.5 text-left transition-all duration-200 cursor-pointer"
                         >

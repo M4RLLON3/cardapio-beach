@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { INITIAL_STORE_CONFIG, CATEGORIES, PRODUCTS } from './data/storeData';
 import { useCart } from './hooks/useCart';
@@ -11,9 +11,16 @@ import { OrderSuccessModal } from './components/OrderSuccessModal';
 import { FloatingCartButton } from './components/FloatingCartButton';
 import { AdminPage } from './pages/AdminPage';
 import { AdminAuthView } from './components/AdminAuthView';
-import { broadcastNewOrder, unlockAudioOnFirstInteraction } from './utils/orderNotification';
+import {
+  broadcastNewOrder,
+  unlockAudioOnFirstInteraction,
+  playOrderNotificationSound,
+  showOrderDesktopNotification,
+} from './utils/orderNotification';
 import {
   fetchCardapioFromCloud,
+  fetchOrdersFromCloud,
+  submitOrderToCloud,
   saveCardapioToCloudDebounced,
   saveCardapioToCloudImmediate,
   DEFAULT_ARENA_ID,
@@ -274,11 +281,59 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    saveCardapioToCloudDebounced({
-      arenaId: DEFAULT_ARENA_ID,
-      pedidos: newOrders,
-    });
   };
+
+  // Polling em tempo real dos pedidos na nuvem D1 (sincronização automática entre aparelhos)
+  useEffect(() => {
+    let isMounted = true;
+
+    const pollOrders = async () => {
+      try {
+        const cloudOrders = await fetchOrdersFromCloud(DEFAULT_ARENA_ID);
+        if (!isMounted || !Array.isArray(cloudOrders)) return;
+
+        setOrders((prevOrders) => {
+          // Detecta se há novos pedidos pendentes que não existiam no estado anterior
+          const prevIds = new Set(prevOrders.map((o) => o.id));
+          const newOrdersIncoming = cloudOrders.filter(
+            (co) => !prevIds.has(co.id) && (co.status === 'pendente' || !co.status)
+          );
+
+          if (newOrdersIncoming.length > 0 && prevOrders.length > 0) {
+            playOrderNotificationSound();
+            showOrderDesktopNotification(newOrdersIncoming[0]);
+          }
+
+          // Se a lista de pedidos mudou, sincroniza localmente
+          const hasChanged =
+            cloudOrders.length !== prevOrders.length ||
+            cloudOrders.some((co, idx) => {
+              const po = prevOrders[idx];
+              return !po || po.id !== co.id || po.status !== co.status;
+            });
+
+          if (hasChanged) {
+            try {
+              localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(cloudOrders));
+            } catch {}
+            return cloudOrders;
+          }
+
+          return prevOrders;
+        });
+      } catch (err) {
+        console.warn('Polling de pedidos D1 avisou:', err);
+      }
+    };
+
+    pollOrders();
+    const intervalId = setInterval(pollOrders, 4000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, []);
 
   // Forçar Sincronização Manual com a Nuvem
   const handleForceCloudSync = async () => {
@@ -413,16 +468,24 @@ export default function App() {
     }
   }, [dynamicCategories, activeCategory]);
 
-  // Refs e efeito para centralizar a categoria selecionada no scroll lateral
-  const categoryTabRefs = React.useRef({});
+  // Refs e efeito para centralizar a categoria selecionada no scroll lateral seguro do container
+  const categoryNavRef = useRef(null);
+  const categoryTabRefs = useRef({});
+
+  const scrollToCategoryTab = (categoryId) => {
+    const container = categoryNavRef.current;
+    const tab = categoryTabRefs.current[categoryId];
+    if (!container || !tab) return;
+    const targetScroll = tab.offsetLeft - (container.clientWidth / 2) + (tab.clientWidth / 2);
+    container.scrollTo({
+      left: Math.max(0, targetScroll),
+      behavior: 'smooth',
+    });
+  };
 
   useEffect(() => {
-    if (activeCategory && categoryTabRefs.current[activeCategory]) {
-      categoryTabRefs.current[activeCategory].scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center',
-      });
+    if (activeCategory) {
+      scrollToCategoryTab(activeCategory);
     }
   }, [activeCategory]);
 
@@ -448,18 +511,12 @@ export default function App() {
   // Rolagem suave para a categoria selecionada e centralização da aba
   const handleSelectCategory = (categoryId) => {
     setActiveCategory(categoryId);
-    if (categoryTabRefs.current[categoryId]) {
-      categoryTabRefs.current[categoryId].scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center',
-      });
-    }
+    scrollToCategoryTab(categoryId);
     const element = document.getElementById(`category-${categoryId}`);
     if (element) {
       const yOffset = -130;
       const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: 'smooth' });
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
     }
   };
 
@@ -470,7 +527,7 @@ export default function App() {
 
   // Quando o cliente submete o pedido
   const handleOrderSubmitted = (orderData) => {
-    const updated = [orderData, ...orders];
+    const updated = [orderData, ...orders.filter((o) => o.id !== orderData.id)];
     updateOrders(updated);
     broadcastNewOrder(orderData);
     clearCart();
@@ -478,6 +535,11 @@ export default function App() {
     setIsCartOpen(false);
     setSubmittedOrder(orderData);
     setIsOrderSuccessOpen(true);
+
+    // Envia atômico para a tabela de pedidos no Cloudflare D1
+    submitOrderToCloud(orderData, DEFAULT_ARENA_ID).catch((err) => {
+      console.warn('Erro ao salvar pedido na nuvem:', err);
+    });
   };
 
   // Se o usuário estiver na página admin
@@ -536,6 +598,7 @@ export default function App() {
         <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Categorias com scroll horizontal suave adaptado para mobile */}
           <nav
+            ref={categoryNavRef}
             aria-label="Categorias do Cardápio"
             className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden -mx-2 px-2 sm:mx-0 sm:px-0"
           >

@@ -16,6 +16,7 @@ import {
   Minimize2,
   Sparkles,
 } from 'lucide-react';
+import { compressCanvasToTargetWebP } from '../utils/cloudSync';
 
 export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
   // Ajustes de Tamanho e Posição
@@ -25,6 +26,7 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
   const [panX, setPanX] = useState(0); // -60% a +60%
   const [panY, setPanY] = useState(0); // -60% a +60%
   const [bgStyle, setBgStyle] = useState('blur'); // 'blur' | 'dark' | 'light'
+  const [blurIntensity, setBlurIntensity] = useState(20); // 0 a 50px
 
   // Ajustes Fotográficos
   const [brightness, setBrightness] = useState(100); // 60 a 140
@@ -60,6 +62,7 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
     setPanX(0);
     setPanY(0);
     setBgStyle('blur');
+    setBlurIntensity(20);
     setBrightness(100);
     setContrast(100);
     setSaturation(100);
@@ -87,7 +90,7 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
     // 1. Fundo do Quadro (quando a foto não cobre toda a área)
     if (bgStyle === 'blur') {
       ctx.save();
-      ctx.filter = 'blur(24px) brightness(60%)';
+      ctx.filter = `blur(${blurIntensity}px) brightness(60%)`;
       ctx.drawImage(img, -20, -20, targetWidth + 40, targetHeight + 40);
       ctx.restore();
     } else if (bgStyle === 'light') {
@@ -144,7 +147,7 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
     );
 
     ctx.restore();
-  }, [zoom, fitMode, rotation, panX, panY, bgStyle, brightness, contrast, saturation, flipH]);
+  }, [zoom, fitMode, rotation, panX, panY, bgStyle, blurIntensity, brightness, contrast, saturation, flipH]);
 
   // Redesenha sempre que qualquer parâmetro sofrer alteração
   useEffect(() => {
@@ -197,6 +200,7 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
     setPanX(0);
     setPanY(0);
     setBgStyle('blur');
+    setBlurIntensity(20);
     setBrightness(100);
     setContrast(100);
     setSaturation(100);
@@ -276,14 +280,14 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
     setZoom((z) => Math.min(3, Math.max(0.3, +(z + delta).toFixed(2))));
   };
 
-  // Aplicação e exportação da imagem final
+  // Aplicação e exportação da imagem final garantindo formato WebP e <= 400 KB
   const handleApply = () => {
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
 
     try {
       setIsProcessing(true);
-      const editedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      const editedDataUrl = compressCanvasToTargetWebP(canvas, 400);
       onSave(editedDataUrl);
       onClose();
     } catch (e) {
@@ -507,6 +511,29 @@ export function ProductPhotoEditor({ isOpen, imageUrl, onClose, onSave }) {
                 ))}
               </div>
             </div>
+
+            {/* Regulagem de Desfoque quando o Fundo for Desfocado */}
+            {bgStyle === 'blur' && (
+              <div className="pt-2 border-t border-[#e4e2de]/60 flex items-center gap-3">
+                <div className="flex-1 space-y-1">
+                  <div className="flex justify-between text-xs font-grotesk font-semibold text-[#434841]">
+                    <span>Intensidade do Desfoque do Fundo</span>
+                    <span className="font-mono text-[#283b26] bg-[#daeaaa] px-2 py-0.5 rounded-md text-[11px] font-bold">
+                      {blurIntensity}px
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="50"
+                    step="1"
+                    value={blurIntensity}
+                    onChange={(e) => setBlurIntensity(parseInt(e.target.value, 10))}
+                    className="w-full accent-[#283b26] cursor-pointer"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ══════════════════════════════════════════════════════════
