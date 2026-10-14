@@ -58,7 +58,7 @@ export async function onRequest(context) {
   const method = request.method.toUpperCase();
 
   let body = null;
-  if (method === 'POST' || method === 'PUT') {
+  if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
     try {
       body = await request.json();
     } catch (e) {
