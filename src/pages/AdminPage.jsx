@@ -1554,16 +1554,26 @@ export function AdminPage({
 
                           {/* Itens do Pedido */}
                           <div className="py-3 space-y-2">
-                            {order.items?.map((item, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-xs font-manrope">
-                                <span className="text-[#132512]">
-                                  <strong className="font-grotesk">{item.quantity}x</strong> {item.name}
-                                </span>
-                                <span className="font-grotesk font-semibold text-[#132512]">
-                                  {formatCurrency(item.price * item.quantity)}
-                                </span>
-                              </div>
-                            ))}
+                            {order.items?.map((item, idx) => {
+                              const itemName = item.name || item.product?.name || 'Item';
+                              const unitPrice = typeof item.price === 'number'
+                                ? item.price
+                                : (typeof item.product?.price === 'number' ? item.product.price : parseFloat(item.price || item.product?.price) || 0);
+                              const qty = item.quantity || 1;
+                              const lineTotal = typeof item.itemTotal === 'number' ? item.itemTotal : unitPrice * qty;
+
+                              return (
+                                <div key={idx} className="flex items-center justify-between text-xs font-manrope">
+                                  <span className="text-[#132512]">
+                                    <strong className="font-grotesk">{qty}x</strong> {itemName}
+                                    {item.notes && <span className="block text-[10px] text-[#747870] italic">Obs: {item.notes}</span>}
+                                  </span>
+                                  <span className="font-grotesk font-semibold text-[#132512]">
+                                    {formatCurrency(lineTotal)}
+                                  </span>
+                                </div>
+                              );
+                            })}
 
                             {order.notes && (
                               <div className="p-2.5 bg-[#f5f3ef] rounded-xl text-[11px] text-[#434841] italic mt-2 border border-[#e4e2de]">
@@ -1585,24 +1595,14 @@ export function AdminPage({
 
                         {/* Ações do Pedido */}
                         <div className="pt-3 border-t border-[#efeeea] flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleCallCustomer(order)}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-grotesk font-bold transition cursor-pointer"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>WhatsApp</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteOrder(order.id, order.customerName)}
-                              className="p-2 rounded-xl text-[#747870] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/50 border border-transparent hover:border-[#ffdad6] transition cursor-pointer"
-                              title="Excluir este pedido"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCallCustomer(order)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-grotesk font-bold transition cursor-pointer"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>WhatsApp</span>
+                          </button>
 
                           <div className="flex items-center gap-1.5">
                             {order.status === 'pendente' && (

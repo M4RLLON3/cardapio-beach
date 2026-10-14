@@ -26,6 +26,27 @@ export async function onRequest(context) {
     return json({ success: false, error: message }, status);
   }
 
+  function normalizeOrderItems(rawItems) {
+    if (!Array.isArray(rawItems)) return [];
+    return rawItems.map((item) => {
+      const name = item.name || item.product?.name || 'Item';
+      const price = typeof item.price === 'number'
+        ? item.price
+        : (typeof item.product?.price === 'number' ? item.product.price : parseFloat(item.price || item.product?.price) || 0);
+      const quantity = item.quantity || 1;
+      const notes = item.notes || '';
+      return {
+        ...item,
+        name,
+        price,
+        quantity,
+        notes,
+        product: item.product || { name, price },
+        itemTotal: typeof item.itemTotal === 'number' ? item.itemTotal : price * quantity,
+      };
+    });
+  }
+
   if (!db) {
     return errorJson('Banco de dados D1 do cardapio nao configurado ou indisponivel.', 500);
   }
@@ -63,6 +84,7 @@ export async function onRequest(context) {
         const parsedOrders = (results || []).map((row) => {
           try {
             const parsed = JSON.parse(row.dados_json || '{}');
+            const normalizedItems = normalizeOrderItems(parsed.items);
             return {
               ...parsed,
               id: row.id,
@@ -72,6 +94,7 @@ export async function onRequest(context) {
               total: row.total !== null ? row.total : parsed.total,
               status: row.status || parsed.status || 'pendente',
               createdAt: row.criado_em || parsed.createdAt,
+              items: normalizedItems,
             };
           } catch (e) {
             return null;
@@ -96,7 +119,12 @@ export async function onRequest(context) {
       const deliveryType = order.deliveryType || 'delivery';
       const total = typeof order.total === 'number' ? order.total : parseFloat(order.total) || 0;
       const status = order.status || 'pendente';
-      const dadosJson = JSON.stringify(order);
+      const normalizedItems = normalizeOrderItems(order.items);
+      const sanitizedOrder = {
+        ...order,
+        items: normalizedItems,
+      };
+      const dadosJson = JSON.stringify(sanitizedOrder);
 
       try {
         await db.prepare(`
@@ -177,7 +205,14 @@ export async function onRequest(context) {
           pedidos = (ordersRes || []).map((row) => {
             try {
               const p = JSON.parse(row.dados_json || '{}');
-              return { ...p, id: row.id, status: row.status || p.status, createdAt: row.criado_em };
+              const normalizedItems = normalizeOrderItems(p.items);
+              return {
+                ...p,
+                id: row.id,
+                status: row.status || p.status,
+                createdAt: row.criado_em,
+                items: normalizedItems,
+              };
             } catch (e) {
               return null;
             }

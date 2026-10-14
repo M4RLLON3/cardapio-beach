@@ -150,8 +150,23 @@ export function CheckoutModal({
       address: orderType === 'delivery' ? { street, number, neighborhood, complement, reference } : null,
       paymentMethod,
       changeFor: paymentMethod === 'cash' && needsChange ? changeFor : undefined,
-      generalNotes,
-      items: [...items],
+      items: items.map((i) => {
+        const name = i.name || i.product?.name || 'Item';
+        const price = typeof i.price === 'number'
+          ? i.price
+          : (typeof i.product?.price === 'number' ? i.product.price : parseFloat(i.price || i.product?.price) || 0);
+        const quantity = i.quantity || 1;
+        const notes = i.notes || '';
+        return {
+          ...i,
+          name,
+          price,
+          quantity,
+          notes,
+          product: i.product || { name, price },
+          itemTotal: typeof i.itemTotal === 'number' ? i.itemTotal : price * quantity,
+        };
+      }),
       subtotal,
       deliveryFee: appliedDeliveryFee,
       total,
