@@ -776,39 +776,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Rodapé Editorial do Cardápio */}
-      <footer className="w-full bg-[#f5f3ef] border-t border-[#dedad2] mt-16 sm:mt-24">
-        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-          <div className="flex flex-col md:flex-row items-baseline justify-between gap-6 pb-8 border-b border-[#dedad2]">
-            <div className="space-y-2">
-              <p className="font-grotesk text-lg sm:text-xl font-bold tracking-tight text-[#132512]">
-                BEACH HOUSE SPORTS N' BAR
-              </p>
-              <p className="font-manrope text-xs sm:text-sm text-[#434841] max-w-md leading-relaxed">
-                Gastronomia costeira despretensiosa, coquetelaria autoral e a energia do esporte à beira da areia.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-6 font-grotesk text-xs uppercase tracking-wider text-[#434841]">
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="hover:text-[#132512] transition-colors"
-              >
-                Menu Digital
-              </a>
-              <span className="hover:text-[#132512] transition-colors cursor-pointer">Reservas</span>
-              <span className="hover:text-[#132512] transition-colors cursor-pointer">Quadras & Lounge</span>
-            </div>
-          </div>
-          <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 font-grotesk text-[11px] sm:text-xs text-[#747870] uppercase tracking-widest">
-            <span>© {new Date().getFullYear()} Beach House Sports N' Bar. Todos os direitos reservados.</span>
-            <span>Ambiente Calmo • Práticas Sustentáveis</span>
-          </div>
-        </div>
-      </footer>
+
 
       {/* Modal de Detalhes do Produto */}
       <ProductModal
