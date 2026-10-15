@@ -508,17 +508,54 @@ export default function App() {
     })).filter((cat) => cat.products.length > 0);
   }, [filteredProducts, dynamicCategories]);
 
+  const isClickingCategoryRef = useRef(false);
+
   // Rolagem suave para a categoria selecionada e centralização da aba
   const handleSelectCategory = (categoryId) => {
+    isClickingCategoryRef.current = true;
     setActiveCategory(categoryId);
     scrollToCategoryTab(categoryId);
     const element = document.getElementById(`category-${categoryId}`);
     if (element) {
-      const yOffset = -130;
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      const stickyBar = document.getElementById('category-sticky-bar');
+      const offset = (stickyBar ? stickyBar.offsetHeight : 100) + 16;
+      const y = element.getBoundingClientRect().top + window.pageYOffset - offset;
       window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
     }
+    setTimeout(() => {
+      isClickingCategoryRef.current = false;
+    }, 800);
   };
+
+  // Efeito de rolagem da página: detecta automaticamente qual categoria está visível e atualiza a aba ativa
+  useEffect(() => {
+    if (searchQuery || productsByCategory.length === 0) return;
+
+    const handleScroll = () => {
+      if (isClickingCategoryRef.current) return;
+
+      const stickyBar = document.getElementById('category-sticky-bar');
+      const offset = (stickyBar ? stickyBar.offsetHeight : 100) + 60;
+      const scrollPosition = window.pageYOffset + offset;
+
+      let currentId = null;
+      for (const cat of productsByCategory) {
+        const el = document.getElementById(`category-${cat.id}`);
+        if (el) {
+          if (scrollPosition >= el.offsetTop) {
+            currentId = cat.id;
+          }
+        }
+      }
+
+      if (currentId && currentId !== activeCategory) {
+        setActiveCategory(currentId);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [productsByCategory, searchQuery, activeCategory]);
 
   const handleOpenProduct = (product) => {
     setSelectedProduct(product);
@@ -594,7 +631,10 @@ export default function App() {
       <Header storeInfo={storeInfo} />
 
       {/* Barra de Filtros e Busca de Categorias integrada */}
-      <div className="sticky top-0 z-30 bg-[#fbf9f5]/95 backdrop-blur-md border-b border-[#dedad2] shadow-xs">
+      <div
+        id="category-sticky-bar"
+        className="sticky top-0 z-40 bg-[#fbf9f5]/95 backdrop-blur-md border-b border-[#dedad2] shadow-xs"
+      >
         <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Categorias com scroll horizontal suave adaptado para mobile */}
           <nav
@@ -703,7 +743,7 @@ export default function App() {
               <section
                 key={category.id}
                 id={`category-${category.id}`}
-                className="scroll-mt-24"
+                className="scroll-mt-32 sm:scroll-mt-28"
               >
                 {/* Título da Categoria Estilo Editorial */}
                 <div className="flex items-baseline justify-between mb-6 sm:mb-8 pb-3 border-b border-[#dedad2]">
